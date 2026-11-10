@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#f4f1ea">
   <meta name="description" content="Live last-digit display and Matches prediction tracker for volatility index ticks. Educational / demo only.">
   <link rel="icon" href="data:,">
-  <title>Matches Digit Predictor</title>
+  <title>Matches Digit Predictor + Trade</title>
   <style>
     :root {
       --bg: #f4f1ea;
@@ -261,6 +261,59 @@
     }
     footer p { margin: 0 0 10px; }
     footer .ta { font-size: 0.92rem; color: #3f3a33; font-family: "Hind Madurai", Catamaran, "Noto Sans Tamil", system-ui, sans-serif; }
+    /* --- trade panel --- */
+    .trade { margin: 0 0 12px; }
+    .trade h3 { margin: 14px 0 6px; font-size: 0.95rem; }
+    .trade .ta-note { font-size: 0.85rem; color: var(--muted); margin: 6px 0 0; }
+    .trade input[type=text], .trade input[type=password], .trade input[type=number], .trade select {
+      font: inherit; color: var(--ink);
+      min-height: var(--tap); width: 100%;
+      border: 1px solid var(--line); background: #fff; border-radius: 12px; padding: 0 12px;
+    }
+    .trade .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+    .trade .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 10px; }
+    .trade .check { display: flex; align-items: center; gap: 8px; font-size: 0.86rem; margin-top: 10px; }
+    .trade .check input { width: 20px; height: 20px; }
+    .btn {
+      min-height: var(--tap); padding: 0 16px; border-radius: 12px; font-weight: 700; cursor: pointer;
+      border: 1px solid var(--line); background: var(--bg);
+    }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn.go { background: var(--good); border-color: var(--good); color: #fff; font-size: 1.05rem; }
+    .btn.danger { background: #fff; border-color: var(--bad); color: var(--bad); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-row { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+    .btn-row .btn { flex: 1 1 auto; }
+    .acct {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin-top: 12px;
+      padding: 10px 12px; border-radius: 12px; background: #f7f3ea; font-size: 0.88rem;
+    }
+    .acct b { font-variant-numeric: tabular-nums; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 700; font-size: 0.78rem; }
+    .tag.demo { background: #e5f3ea; color: var(--good); }
+    .tag.real { background: #b42318; color: #fff; }
+    .real-warn {
+      display: none; margin-top: 10px; padding: 10px 12px; border-radius: 12px;
+      background: #fde8e6; border: 2px solid #b42318; color: #7a1a12; font-weight: 600; font-size: 0.9rem;
+    }
+    .real-warn.show { display: block; }
+    .msg { margin-top: 10px; padding: 8px 12px; border-radius: 12px; font-size: 0.88rem; display: none; }
+    .msg.show { display: block; }
+    .msg.err { background: #f8e8e8; color: var(--bad); }
+    .msg.ok { background: #e5f3ea; color: var(--good); }
+    .msg.info { background: var(--accent-soft); color: var(--accent); }
+    .countdown { text-align: center; font-size: 1.2rem; font-weight: 700; margin-top: 10px; min-height: 1.6em; font-variant-numeric: tabular-nums; }
+    .pnl { display: flex; justify-content: space-between; align-items: baseline; margin-top: 12px; gap: 8px; flex-wrap: wrap; }
+    .pnl .v { font-size: 1.4rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .pnl .v.pos { color: var(--good); } .pnl .v.neg { color: var(--bad); }
+    .log { margin-top: 10px; max-height: 260px; overflow-y: auto; border-top: 1px solid var(--line); }
+    .log .li { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; padding: 8px 2px; border-bottom: 1px solid var(--line); font-size: 0.84rem; align-items: center; }
+    .log .li .res { font-weight: 700; font-variant-numeric: tabular-nums; }
+    .log .li.win .res { color: var(--good); } .log .li.loss .res { color: var(--bad); } .log .li.skip .res, .log .li.open .res { color: var(--muted); }
+    .log .empty { color: var(--muted); font-size: 0.84rem; padding: 8px 2px; }
+    .hidden { display: none !important; }
+    .small { font-size: 0.78rem; color: var(--muted); }
+    .trade a { color: var(--accent); }
   </style>
 </head>
 <body>
@@ -268,6 +321,7 @@
     <header>
       <h1>Matches Digit Predictor</h1>
       <p class="sub">Live last digit and a simple next-tick guess. No claimed edge.</p>
+      <p class="sub" lang="ta">நேரடி கடைசி இலக்கம், எளிய அடுத்த-tick கணிப்பு, உங்க Deriv account-ல நேரடி trade. எந்த "confidence %"-ம் இல்லை.</p>
       <div class="status-row">
         <span id="status" class="pill wait" role="status"><span class="dot"></span><span id="status-text">Connecting</span></span>
         <span id="endpoint" class="endpoint"></span>
@@ -317,6 +371,76 @@
         <div id="method-label" class="method-label">Last digit (repeat)</div>
       </section>
     </div>
+
+    <section class="card trade" id="trade-card">
+      <h2>Trade (Deriv account)</h2>
+
+      <!-- Connect -->
+      <div id="connect-box">
+        <p class="ta-note">உங்க Deriv <b>App ID</b> மற்றும் <b>API token (PAT)</b> போடுங்க. Token இந்த browser-ல மட்டும் இருக்கும்; Deriv (api.derivws.com) தவிர வேற எங்கேயும் அனுப்பப்படாது. Demo account-ல மட்டும் பயன்படுத்துங்க.</p>
+        <label class="field" style="margin-top:10px">App ID (developers.deriv.com Dashboard)
+          <input type="text" id="app-id" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="உங்க App ID">
+        </label>
+        <label class="field" style="margin-top:10px">API token (PAT, scope: trade)
+          <input type="password" id="api-token" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="pat_…">
+        </label>
+        <label class="check"><input type="checkbox" id="remember"> இந்த phone-ல நினைவில் வை (localStorage)</label>
+        <div class="btn-row">
+          <button type="button" class="btn primary" id="btn-connect">Connect</button>
+        </div>
+        <p class="small" style="margin-top:8px">Token எப்படி எடுப்பது: developers.deriv.com → login → Dashboard → PAT type app register பண்ணுங்க (App ID கிடைக்கும்) → API tokens → புது token, <b>trade</b> scope.</p>
+      </div>
+
+      <!-- Account -->
+      <div id="account-box" class="hidden">
+        <div class="acct">
+          <span>Account</span><b id="acc-id">—</b>
+          <span>Type</span><span id="acc-type">—</span>
+          <span>Currency</span><b id="acc-cur">—</b>
+          <span>Balance</span><b id="acc-bal">—</b>
+          <span>Connection</span><span id="acc-conn">—</span>
+        </div>
+        <label class="field" style="margin-top:10px" id="acc-select-wrap">Account மாற்று
+          <select id="acc-select"></select>
+        </label>
+        <div class="real-warn" id="real-warn">⚠ இது REAL account — உண்மையான பணம்! Matches வெற்றி சுமார் 10% மட்டுமே; நஷ்டம் வர வாய்ப்பு அதிகம். ஒவ்வொரு trade-க்கும் கூடுதல் உறுதிப்படுத்தல் கேட்கும்.
+          <label class="check"><input type="checkbox" id="real-ack"> Real பணம் என்று புரிந்துகொண்டேன்</label>
+        </div>
+        <div class="btn-row"><button type="button" class="btn danger" id="btn-logout">Logout (token அழி)</button></div>
+      </div>
+
+      <div class="msg" id="trade-msg" role="alert"></div>
+
+      <!-- Trade controls -->
+      <div id="trade-box" class="hidden">
+        <h3>Trade settings</h3>
+        <div class="row3">
+          <label class="field">Stake ($)<input type="number" id="stake" value="0.35" min="0.35" step="0.01" inputmode="decimal"></label>
+          <label class="field">Ticks<input type="number" id="ticks" value="1" min="1" max="10" step="1" inputmode="numeric"></label>
+          <label class="field">Digit<input type="number" id="digit" value="" min="0" max="9" step="1" inputmode="numeric"></label>
+        </div>
+        <label class="check"><input type="checkbox" id="follow" checked> Digit-ஐ site prediction-ல இருந்து தானா நிரப்பு</label>
+        <p class="small">Market: மேலே உள்ள Market dropdown (<b id="trade-market">R_10</b>). Fixed stake மட்டும் — martingale இல்லை.</p>
+        <div class="row2">
+          <label class="field">Take Profit ($)<input type="number" id="tp" value="5" min="0.01" step="0.01" inputmode="decimal"></label>
+          <label class="field">Stop Loss ($)<input type="number" id="sl" value="5" min="0.01" step="0.01" inputmode="decimal"></label>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn go" id="btn-trade">Trade now</button>
+        </div>
+        <label class="check"><input type="checkbox" id="auto"> Auto mode — ஒவ்வொரு புது prediction-க்கும்
+          <select id="auto-delay" style="width:auto;min-height:36px;padding:0 8px"><option value="3">3s</option><option value="5" selected>5s</option><option value="10">10s</option></select> கழித்து trade</label>
+        <div class="countdown" id="countdown" aria-live="polite"></div>
+
+        <div class="pnl">
+          <div><div class="small">Session P/L</div><div class="v" id="pnl">0.00</div></div>
+          <div style="text-align:right"><div class="small">Trades · Wins</div><div class="v" id="wl" style="font-size:1.05rem">0 · 0</div></div>
+          <button type="button" class="btn" id="btn-pnl-reset" style="min-height:36px">Reset P/L</button>
+        </div>
+        <h3>Trade log</h3>
+        <div class="log" id="trade-log"><div class="empty">இன்னும் trade இல்லை.</div></div>
+      </div>
+    </section>
 
     <section class="card tracker">
       <h2>Live tracker</h2>
@@ -517,6 +641,14 @@
     renderFreq(win, method);
     renderStrip(state.digits);
     renderTracker();
+    notifyHooks("view");
+  }
+
+  function notifyHooks(kind) {
+    var hooks = window.__predictorHooks || [];
+    for (var i = 0; i < hooks.length; i++) {
+      try { hooks[i](kind); } catch (e) {}
+    }
   }
 
   // --- app state ---
@@ -624,6 +756,7 @@
     }
     state.readyToScore = true;
     refreshViews();
+    notifyHooks("tick");
   }
 
   function loadHistoryAndSubscribe() {
@@ -787,6 +920,581 @@
         status: el.statusText.textContent
       };
     }
+  };
+})();
+  </script>
+  <script>
+(function () {
+  "use strict";
+
+  var API_BASE = "https://api.derivws.com";
+  var LS_TOKEN = "mp_trade_token";
+  var LS_APP = "mp_trade_app_id";
+  var LS_ACC = "mp_trade_account";
+  var MIN_STAKE = 0.35;
+  var RESULT_TIMEOUT_MS = 90000;
+
+  function $(id) { return document.getElementById(id); }
+  var t = {
+    connectBox: $("connect-box"), accountBox: $("account-box"), tradeBox: $("trade-box"),
+    appId: $("app-id"), token: $("api-token"), remember: $("remember"),
+    btnConnect: $("btn-connect"), btnLogout: $("btn-logout"),
+    accId: $("acc-id"), accType: $("acc-type"), accCur: $("acc-cur"), accBal: $("acc-bal"), accConn: $("acc-conn"),
+    accSelect: $("acc-select"), accSelectWrap: $("acc-select-wrap"),
+    realWarn: $("real-warn"), realAck: $("real-ack"), msg: $("trade-msg"),
+    stake: $("stake"), ticks: $("ticks"), digit: $("digit"), follow: $("follow"), tradeMarket: $("trade-market"),
+    tp: $("tp"), sl: $("sl"), btnTrade: $("btn-trade"), auto: $("auto"), autoDelay: $("auto-delay"),
+    countdown: $("countdown"), pnl: $("pnl"), wl: $("wl"), btnPnlReset: $("btn-pnl-reset"), log: $("trade-log"),
+    market: $("market")
+  };
+
+  // Token lives only in this closure (and localStorage if the user opts in).
+  var auth = {
+    token: "", appId: "", accounts: [], account: null, isReal: false,
+    ws: null, wsOpen: false, closedOnPurpose: false, reqId: 1, pending: {},
+    pingTimer: null, reconnectTimer: null, backoff: 1000, balanceSubId: null
+  };
+  var session = { pnl: 0, trades: 0, wins: 0 };
+  var busy = false;
+  var openContracts = {};   // contract_id -> {entry, subId, timer, settled}
+  var autoState = { timer: null, remaining: 0, realConfirmed: false };
+  var userEditedDigit = false;
+
+  // ---------- messages ----------
+  function showMsg(kind, text) {
+    if (!text) { t.msg.className = "msg"; t.msg.textContent = ""; return; }
+    t.msg.className = "msg show " + kind;
+    t.msg.textContent = text;
+  }
+
+  var TA_ERRORS = {
+    network: "Deriv server-ஐ அணுக முடியவில்லை. Internet இணைப்பை சரிபார்த்து மீண்டும் முயற்சி செய்யுங்க.",
+    InvalidToken: "Token தவறு அல்லது காலாவதி ஆகிவிட்டது. developers.deriv.com-ல புது token உருவாக்குங்க.",
+    AppIdRequired: "App ID தேவை. developers.deriv.com Dashboard-ல PAT app register பண்ணி App ID போடுங்க.",
+    Forbidden: "இந்த token-க்கு அனுமதி இல்லை. Token உருவாக்கும் போது 'trade' scope தேர்வு செய்யுங்க.",
+    AccountNotFound: "இந்த account கிடைக்கவில்லை.",
+    RateLimit: "அதிக requests. சில வினாடிகள் கழித்து முயற்சி செய்யுங்க.",
+    AuthorizationRequired: "Login session முடிந்துவிட்டது. மீண்டும் Connect செய்யுங்க.",
+    InsufficientBalance: "Balance போதவில்லை.",
+    MarketIsClosed: "இந்த market இப்போது மூடப்பட்டுள்ளது.",
+    InvalidContractProposal: "Proposal காலாவதி ஆகிவிட்டது. மீண்டும் முயற்சி செய்யுங்க.",
+    ContractBuyValidationError: "Deriv இந்த trade-ஐ ஏற்கவில்லை (stake / digit / ticks சரிபார்க்கவும்).",
+    ContractCreationFailure: "Contract உருவாக்க முடியவில்லை. மீண்டும் முயற்சி செய்யுங்க.",
+    PriceMoved: "விலை மாறிவிட்டது. மீண்டும் முயற்சி செய்யுங்க.",
+    InputValidationFailed: "உள்ளீடு தவறு (stake / digit / ticks சரிபார்க்கவும்).",
+    OfferingsValidationError: "இந்த market / duration-க்கு Matches கிடைக்கவில்லை.",
+    timeout: "Deriv பதில் தர நேரம் ஆகிவிட்டது. மீண்டும் முயற்சி செய்யுங்க.",
+    notConnected: "Trade account இணைக்கப்படவில்லை. முதலில் Connect செய்யுங்க."
+  };
+  function taError(err) {
+    if (!err) return "தெரியாத பிழை.";
+    var code = err.code || "";
+    var raw = err.message || "";
+    var ta = TA_ERRORS[code];
+    if (!ta && err.http === 401) ta = /App-ID/i.test(raw) ? TA_ERRORS.AppIdRequired : TA_ERRORS.InvalidToken;
+    if (!ta && err.http === 403) ta = TA_ERRORS.Forbidden;
+    if (!ta && err.http === 429) ta = TA_ERRORS.RateLimit;
+    if (!ta) ta = "Deriv பிழை.";
+    return ta + (raw ? " (" + (code ? code + ": " : "") + raw + ")" : "");
+  }
+  function mkErr(code, message, http) { var e = new Error(message || code); e.code = code; e.http = http; return e; }
+
+  // ---------- REST (only to api.derivws.com) ----------
+  function rest(method, path) {
+    var headers = { "Authorization": "Bearer " + auth.token };
+    if (auth.appId) headers["Deriv-App-ID"] = auth.appId;
+    return fetch(API_BASE + path, { method: method, headers: headers, credentials: "omit", cache: "no-store" })
+      .catch(function () { throw mkErr("network", "Network / CORS error"); })
+      .then(function (r) {
+        return r.text().then(function (text) {
+          var j = null;
+          try { j = JSON.parse(text); } catch (e) {}
+          if (!r.ok) {
+            var e0 = j && j.errors && j.errors[0];
+            var code = e0 && e0.code;
+            if (r.status === 401 && (!code || code === "Unauthorized" || code === "UnauthorizedAccess")) code = /App-ID/i.test(text) ? "AppIdRequired" : "InvalidToken";
+            if (r.status === 403 && (!code || code === "AccessDenied")) code = "Forbidden";
+            if (r.status === 429) code = "RateLimit";
+            throw mkErr(code || ("HTTP" + r.status), (e0 && e0.message) || String(text || "").trim().slice(0, 160), r.status);
+          }
+          if (!j) throw mkErr("BadResponse", "Unexpected response from Deriv");
+          return j;
+        });
+      });
+  }
+
+  // ---------- WebSocket (authenticated via OTP URL) ----------
+  function wsSend(payload) {
+    var id = auth.reqId++;
+    payload.req_id = id;
+    auth.ws.send(JSON.stringify(payload));
+    return id;
+  }
+  function wsRequest(payload, timeoutMs) {
+    return new Promise(function (resolve, reject) {
+      if (!auth.ws || auth.ws.readyState !== 1) { reject(mkErr("notConnected")); return; }
+      var id = wsSend(payload);
+      var timer = setTimeout(function () { delete auth.pending[id]; reject(mkErr("timeout", "Request timed out")); }, timeoutMs || 15000);
+      auth.pending[id] = {
+        resolve: function (m) { clearTimeout(timer); resolve(m); },
+        reject: function (e) { clearTimeout(timer); reject(e); }
+      };
+    });
+  }
+  function rejectAllPending(code) {
+    var ids = Object.keys(auth.pending);
+    for (var i = 0; i < ids.length; i++) { var p = auth.pending[ids[i]]; delete auth.pending[ids[i]]; p.reject(mkErr(code || "notConnected")); }
+  }
+
+  function isAllowedWsUrl(url) {
+    return /^wss:\/\/([a-z0-9-]+\.)*derivws\.com\/trading\/v1\/options\/ws\/(demo|real)\?/i.test(String(url || ""));
+  }
+
+  function setConn(text) { t.accConn.textContent = text; }
+
+  function closeWs() {
+    if (auth.pingTimer) { clearInterval(auth.pingTimer); auth.pingTimer = null; }
+    if (auth.reconnectTimer) { clearTimeout(auth.reconnectTimer); auth.reconnectTimer = null; }
+    if (auth.ws) {
+      auth.closedOnPurpose = true;
+      try { auth.ws.onclose = null; auth.ws.onerror = null; auth.ws.onmessage = null; auth.ws.close(); } catch (e) {}
+    }
+    auth.ws = null; auth.wsOpen = false; auth.balanceSubId = null;
+    updateTradeButton();
+    rejectAllPending("notConnected");
+  }
+
+  function openTradingSocket() {
+    var acc = auth.account;
+    setConn("OTP பெறுகிறது…");
+    return rest("POST", "/trading/v1/options/accounts/" + encodeURIComponent(acc.account_id) + "/otp").then(function (j) {
+      var url = j && j.data && j.data.url;
+      if (!isAllowedWsUrl(url)) throw mkErr("BadResponse", "Unexpected WebSocket URL from Deriv");
+      auth.isReal = /\/ws\/real\?/i.test(url) || acc.account_type === "real";
+      return new Promise(function (resolve, reject) {
+        closeWs();
+        auth.closedOnPurpose = false;
+        var ws, opened = false;
+        try { ws = new WebSocket(url); } catch (e) { reject(mkErr("network", e.message)); return; }
+        auth.ws = ws;
+        setConn("இணைக்கிறது…");
+        ws.onopen = function () {
+          opened = true; auth.wsOpen = true; auth.backoff = 1000;
+          setConn("Live ✓");
+          updateTradeButton();
+          auth.pingTimer = setInterval(function () { if (auth.ws && auth.ws.readyState === 1) { try { wsSend({ ping: 1 }); } catch (e) {} } }, 30000);
+          wsRequest({ balance: 1, subscribe: 1 }).then(function (m) {
+            if (m.subscription) auth.balanceSubId = m.subscription.id;
+            onBalance(m.balance);
+          }).catch(function (e) { showMsg("err", taError(e)); });
+          resubscribeOpenContracts();
+          resolve();
+        };
+        ws.onmessage = onWsMessage;
+        ws.onerror = function () {};
+        ws.onclose = function () {
+          auth.wsOpen = false;
+          updateTradeButton();
+          if (auth.pingTimer) { clearInterval(auth.pingTimer); auth.pingTimer = null; }
+          rejectAllPending("notConnected");
+          if (auth.closedOnPurpose) return;
+          if (!opened) { reject(mkErr("network", "WebSocket did not open")); }
+          scheduleReconnect();
+        };
+      });
+    });
+  }
+
+  function scheduleReconnect() {
+    if (!auth.token || !auth.account) return;
+    if (auth.reconnectTimer) clearTimeout(auth.reconnectTimer);
+    var wait = auth.backoff;
+    auth.backoff = Math.min(15000, Math.round(auth.backoff * 1.7));
+    setConn("துண்டிக்கப்பட்டது — " + Math.round(wait / 1000) + "s-ல் மீண்டும் இணைக்கும்");
+    showMsg("info", "Trade connection துண்டிக்கப்பட்டது. தானாக மீண்டும் இணைக்கிறது…");
+    auth.reconnectTimer = setTimeout(function () {
+      auth.reconnectTimer = null;
+      openTradingSocket().then(function () { showMsg("ok", "மீண்டும் இணைந்துவிட்டது."); }).catch(function (e) {
+        if (e.code === "InvalidToken" || e.code === "Forbidden" || e.code === "AppIdRequired") {
+          stopAuto("token பிரச்சனை");
+          showMsg("err", taError(e));
+          setConn("Token பிழை");
+          return;
+        }
+        scheduleReconnect();
+      });
+    }, wait);
+  }
+
+  function onWsMessage(ev) {
+    var m;
+    try { m = JSON.parse(ev.data); } catch (e) { return; }
+    var p = m.req_id != null ? auth.pending[m.req_id] : null;
+    if (m.error) {
+      var err = mkErr(m.error.code || "ApiError", m.error.message);
+      if (p) { delete auth.pending[m.req_id]; p.reject(err); }
+      else showMsg("err", taError(err));
+      if (m.error.code === "AuthorizationRequired" || m.error.code === "InvalidToken") { stopAuto("login session"); }
+      return;
+    }
+    if (p) { delete auth.pending[m.req_id]; p.resolve(m); }
+    if (m.msg_type === "balance" && m.balance && !p) onBalance(m.balance);
+    if (m.msg_type === "proposal_open_contract" && m.proposal_open_contract) onPoc(m.proposal_open_contract, m.subscription);
+  }
+
+  function fmtMoney(v) { var n = Number(v); return isFinite(n) ? n.toFixed(2) : "—"; }
+
+  function onBalance(b) {
+    if (!b) return;
+    t.accBal.textContent = fmtMoney(b.balance) + " " + (b.currency || (auth.account && auth.account.currency) || "");
+    if (b.currency) t.accCur.textContent = b.currency;
+  }
+
+  // ---------- connect / logout ----------
+  function renderAccount() {
+    var a = auth.account;
+    t.accId.textContent = a.account_id;
+    t.accCur.textContent = a.currency || "—";
+    t.accBal.textContent = fmtMoney(a.balance) + " " + (a.currency || "");
+    t.accType.innerHTML = auth.isReal ? '<span class="tag real">REAL</span>' : '<span class="tag demo">DEMO</span>';
+    t.realWarn.className = auth.isReal ? "real-warn show" : "real-warn";
+    if (!auth.isReal) t.realAck.checked = false;
+    var html = "";
+    for (var i = 0; i < auth.accounts.length; i++) {
+      var x = auth.accounts[i];
+      html += '<option value="' + String(x.account_id).replace(/"/g, "") + '"' + (x.account_id === a.account_id ? " selected" : "") + ">" +
+        x.account_id + " · " + String(x.account_type || "").toUpperCase() + " · " + (x.currency || "") + "</option>";
+    }
+    t.accSelect.innerHTML = html;
+    t.accSelectWrap.className = auth.accounts.length > 1 ? "field" : "field hidden";
+  }
+
+  function pickAccount(list) {
+    var saved = null;
+    try { saved = localStorage.getItem(LS_ACC); } catch (e) {}
+    var i;
+    if (saved) for (i = 0; i < list.length; i++) if (list[i].account_id === saved) return list[i];
+    for (i = 0; i < list.length; i++) if (list[i].account_type === "demo" && list[i].status !== "inactive") return list[i];
+    for (i = 0; i < list.length; i++) if (list[i].status !== "inactive") return list[i];
+    return list[0];
+  }
+
+  function setUiConnected(on) {
+    t.connectBox.className = on ? "hidden" : "";
+    t.accountBox.className = on ? "" : "hidden";
+    t.tradeBox.className = on ? "" : "hidden";
+  }
+
+  function doConnect() {
+    var token = String(t.token.value || "").trim();
+    var appId = String(t.appId.value || "").trim();
+    if (!appId) { showMsg("err", TA_ERRORS.AppIdRequired); return Promise.resolve(); }
+    if (!/^[A-Za-z0-9_\-.]{8,256}$/.test(token)) { showMsg("err", "Token சரியாக இல்லை. developers.deriv.com-ல உருவாக்கிய token-ஐ முழுதாக paste பண்ணுங்க."); return Promise.resolve(); }
+    auth.token = token; auth.appId = appId;
+    t.btnConnect.disabled = true;
+    showMsg("info", "Deriv-உடன் இணைக்கிறது…");
+    return rest("GET", "/trading/v1/options/accounts").then(function (j) {
+      var list = (j && j.data) || [];
+      if (!list.length) throw mkErr("AccountNotFound", "No options trading accounts on this token");
+      auth.accounts = list;
+      auth.account = pickAccount(list);
+      return openTradingSocket();
+    }).then(function () {
+      try {
+        if (t.remember.checked) { localStorage.setItem(LS_TOKEN, auth.token); localStorage.setItem(LS_APP, auth.appId); }
+        else { localStorage.removeItem(LS_TOKEN); localStorage.removeItem(LS_APP); }
+        localStorage.setItem(LS_ACC, auth.account.account_id);
+      } catch (e) {}
+      t.token.value = "";
+      renderAccount();
+      setUiConnected(true);
+      syncDigit(true);
+      showMsg("ok", "இணைந்துவிட்டது: " + auth.account.account_id + (auth.isReal ? " (REAL — கவனம்!)" : " (Demo)"));
+    }).catch(function (e) {
+      closeWs();
+      auth.token = ""; auth.account = null; auth.accounts = [];
+      setUiConnected(false);
+      showMsg("err", taError(e));
+    }).then(function () { t.btnConnect.disabled = false; });
+  }
+
+  function doLogout() {
+    stopAuto();
+    closeWs();
+    var ids = Object.keys(openContracts);
+    for (var i = 0; i < ids.length; i++) { if (openContracts[ids[i]].timer) clearTimeout(openContracts[ids[i]].timer); }
+    openContracts = {};
+    busy = false;
+    auth.token = ""; auth.appId = ""; auth.account = null; auth.accounts = []; auth.isReal = false;
+    try { localStorage.removeItem(LS_TOKEN); localStorage.removeItem(LS_APP); localStorage.removeItem(LS_ACC); } catch (e) {}
+    t.token.value = ""; t.appId.value = ""; t.remember.checked = false; t.realAck.checked = false;
+    setUiConnected(false);
+    showMsg("ok", "Logout ஆனது. Token இந்த browser-ல இருந்து அழிக்கப்பட்டது.");
+  }
+
+  function switchAccount() {
+    var id = t.accSelect.value;
+    var next = null;
+    for (var i = 0; i < auth.accounts.length; i++) if (auth.accounts[i].account_id === id) next = auth.accounts[i];
+    if (!next || (auth.account && next.account_id === auth.account.account_id)) return;
+    if (busy) { showMsg("err", "Trade நடக்கும்போது account மாற்ற முடியாது."); t.accSelect.value = auth.account.account_id; return; }
+    stopAuto("account மாற்றம்");
+    auth.account = next;
+    try { localStorage.setItem(LS_ACC, next.account_id); } catch (e) {}
+    showMsg("info", next.account_id + "-க்கு மாற்றுகிறது…");
+    openTradingSocket().then(function () { renderAccount(); showMsg("ok", "Account: " + next.account_id + (auth.isReal ? " (REAL — கவனம்!)" : " (Demo)")); })
+      .catch(function (e) { showMsg("err", taError(e)); });
+  }
+
+  // ---------- trading ----------
+  function num(input) { var v = Number(String(input.value).replace(",", ".")); return isFinite(v) ? v : NaN; }
+
+  function logEntry(kind, left, mid, right) {
+    var empty = t.log.querySelector(".empty");
+    if (empty) empty.remove();
+    var div = document.createElement("div");
+    div.className = "li " + kind;
+    var a = document.createElement("span"); a.textContent = left;
+    var b = document.createElement("span"); b.textContent = mid;
+    var c = document.createElement("span"); c.className = "res"; c.textContent = right;
+    div.appendChild(a); div.appendChild(b); div.appendChild(c);
+    t.log.insertBefore(div, t.log.firstChild);
+    while (t.log.children.length > 100) t.log.removeChild(t.log.lastChild);
+    return div;
+  }
+  function timeNow() { var d = new Date(); return ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2) + ":" + ("0" + d.getSeconds()).slice(-2); }
+
+  function renderPnl() {
+    t.pnl.textContent = (session.pnl >= 0 ? "+" : "") + session.pnl.toFixed(2);
+    t.pnl.className = "v" + (session.pnl > 0 ? " pos" : session.pnl < 0 ? " neg" : "");
+    t.wl.textContent = session.trades + " · " + session.wins;
+  }
+
+  function updateTradeButton() {
+    t.btnTrade.disabled = busy || !auth.wsOpen;
+    t.btnTrade.textContent = busy ? "Trade நடக்கிறது…" : "Trade now";
+  }
+
+  function readInputs() {
+    var stake = Math.round(num(t.stake) * 100) / 100;
+    var ticks = num(t.ticks);
+    var digit = num(t.digit);
+    var tp = num(t.tp), sl = num(t.sl);
+    if (!(stake >= MIN_STAKE)) return { error: "Stake குறைந்தது " + MIN_STAKE.toFixed(2) + " இருக்க வேண்டும்." };
+    if (!(ticks >= 1 && ticks <= 10 && Math.floor(ticks) === ticks)) return { error: "Ticks 1 முதல் 10 வரை முழு எண்ணாக இருக்க வேண்டும்." };
+    if (!(digit >= 0 && digit <= 9 && Math.floor(digit) === digit) || String(t.digit.value).trim() === "") return { error: "Digit 0 முதல் 9 வரை இருக்க வேண்டும்." };
+    if (!(tp > 0) || !(sl > 0)) return { error: "Take Profit, Stop Loss இரண்டும் 0-க்கு மேல் இருக்க வேண்டும்." };
+    return { stake: stake, ticks: ticks, digit: digit, tp: tp, sl: sl, symbol: t.market.value };
+  }
+
+  function tradeOnce(source) {
+    if (busy) return Promise.resolve("busy");
+    if (!auth.ws || !auth.wsOpen) { showMsg("err", TA_ERRORS.notConnected); return Promise.resolve("noconn"); }
+    var inp = readInputs();
+    if (inp.error) { showMsg("err", inp.error); if (source === "auto") stopAuto("உள்ளீடு பிழை"); return Promise.resolve("input"); }
+    if (session.pnl >= inp.tp - 1e-9) {
+      stopAuto("Take Profit");
+      showMsg("ok", "Take Profit (" + inp.tp.toFixed(2) + ") அடைந்தது. P/L-ஐ Reset செய்து மீண்டும் தொடங்கலாம்.");
+      return Promise.resolve("tp");
+    }
+    if (session.pnl - inp.stake < -inp.sl - 1e-9) {
+      logEntry("skip", timeNow(), "Skip · digit " + inp.digit + " · " + inp.symbol, "SL guard");
+      stopAuto("Stop Loss");
+      showMsg("err", "Trade தவிர்க்கப்பட்டது: இந்த trade தோற்றால் Stop Loss (" + inp.sl.toFixed(2) + ") தாண்டும்.");
+      return Promise.resolve("sl");
+    }
+    if (auth.isReal) {
+      if (!t.realAck.checked) { showMsg("err", "REAL account: முதலில் 'Real பணம் என்று புரிந்துகொண்டேன்' tick பண்ணுங்க."); if (source === "auto") stopAuto("REAL உறுதிப்படுத்தல்"); return Promise.resolve("real"); }
+      if (!(source === "auto" && autoState.realConfirmed)) {
+        if (!window.confirm("REAL பணம்: " + inp.stake.toFixed(2) + " " + (auth.account.currency || "") + " — " + inp.symbol + " Matches digit " + inp.digit + ". உறுதியா?")) return Promise.resolve("cancel");
+      }
+    }
+    busy = true; updateTradeButton();
+    var currency = (auth.account && auth.account.currency) || "USD";
+    var entry = null;
+    showMsg("info", "Proposal கேட்கிறது… (digit " + inp.digit + ", " + inp.symbol + ")");
+    return wsRequest({
+      proposal: 1, amount: inp.stake, basis: "stake", contract_type: "DIGITMATCH", currency: currency,
+      duration: inp.ticks, duration_unit: "t", underlying_symbol: inp.symbol, barrier: String(inp.digit)
+    }).then(function (m) {
+      var pr = m.proposal || {};
+      var ask = Number(pr.ask_price), payout = Number(pr.payout);
+      if (!pr.id) throw mkErr("BadResponse", "Proposal had no id");
+      if (!(isFinite(ask) && isFinite(payout))) throw mkErr("BadResponse", "Proposal had no price");
+      if (ask > inp.stake + 0.005) throw mkErr("PriceCheck", "Ask " + ask.toFixed(2) + " > stake " + inp.stake.toFixed(2));
+      if (!(payout > ask)) throw mkErr("PriceCheck", "Payout " + payout.toFixed(2) + " ≤ ask " + ask.toFixed(2));
+      return wsRequest({ buy: pr.id, price: ask }).then(function (b) { return { b: b, ask: ask, payout: payout }; });
+    }).then(function (r) {
+      var buy = r.b.buy || {};
+      if (!buy.contract_id) throw mkErr("BadResponse", "Buy had no contract id");
+      if (Number(buy.buy_price) > inp.stake + 0.005) showMsg("err", "எச்சரிக்கை: buy price " + fmtMoney(buy.buy_price) + " stake-ஐ விட அதிகம்.");
+      if (buy.balance_after != null) t.accBal.textContent = fmtMoney(buy.balance_after) + " " + currency;
+      var row = logEntry("open", timeNow(), "#" + buy.contract_id + " · digit " + inp.digit + " · " + inp.symbol + " · " + inp.ticks + "t · " + fmtMoney(buy.buy_price), "…");
+      entry = { row: row, stake: Number(buy.buy_price), digit: inp.digit, symbol: inp.symbol, ticks: inp.ticks, payout: Number(buy.payout || r.payout) };
+      var oc = { entry: entry, subId: null, settled: false, timer: null };
+      openContracts[buy.contract_id] = oc;
+      oc.timer = setTimeout(function () {
+        if (oc.settled) return;
+        entry.row.querySelector(".res").textContent = "முடிவு வரவில்லை";
+        busy = false; updateTradeButton();
+        showMsg("err", "Contract #" + buy.contract_id + " முடிவு இன்னும் வரவில்லை. Deriv-ல Reports பார்க்கவும்.");
+        stopAuto("முடிவு தாமதம்");
+      }, RESULT_TIMEOUT_MS);
+      showMsg("info", "Contract #" + buy.contract_id + " வாங்கப்பட்டது. முடிவுக்காக காத்திருக்கிறது…");
+      return wsRequest({ proposal_open_contract: 1, contract_id: buy.contract_id, subscribe: 1 }).then(function (m) {
+        if (m.subscription) oc.subId = m.subscription.id;
+        return "bought";
+      }, function (e) { showMsg("err", taError(e)); return "bought"; });
+    }).catch(function (e) {
+      busy = false; updateTradeButton();
+      if (e.code === "PriceCheck") showMsg("err", "Price check தோல்வி — trade வாங்கவில்லை. (" + e.message + ")");
+      else showMsg("err", "Trade தோல்வி: " + taError(e));
+      logEntry("skip", timeNow(), "Not bought · digit " + inp.digit + " · " + inp.symbol, e.code || "error");
+      if (source === "auto" && e.code !== "PriceMoved" && e.code !== "InvalidContractProposal") stopAuto("API பிழை");
+      return "error";
+    });
+  }
+
+  function resubscribeOpenContracts() {
+    var ids = Object.keys(openContracts);
+    for (var i = 0; i < ids.length; i++) {
+      (function (id) {
+        var oc = openContracts[id];
+        if (oc.settled) return;
+        wsRequest({ proposal_open_contract: 1, contract_id: Number(id), subscribe: 1 }).then(function (m) {
+          if (m.subscription) oc.subId = m.subscription.id;
+        }).catch(function () {});
+      })(ids[i]);
+    }
+  }
+
+  function onPoc(c, sub) {
+    var oc = openContracts[c.contract_id];
+    if (!oc) return;
+    if (sub && sub.id) oc.subId = sub.id;
+    if (oc.settled) return;
+    var done = c.is_sold === 1 || c.is_sold === true || c.status === "won" || c.status === "lost";
+    if (!done) return;
+    oc.settled = true;
+    if (oc.timer) clearTimeout(oc.timer);
+    var profit = Number(c.profit);
+    if (!isFinite(profit)) profit = Number(c.sell_price || 0) - Number(c.buy_price || oc.entry.stake);
+    var won = c.status === "won" || profit > 0;
+    session.pnl = Math.round((session.pnl + profit) * 100) / 100;
+    session.trades += 1;
+    if (won) session.wins += 1;
+    renderPnl();
+    var row = oc.entry.row;
+    row.className = "li " + (won ? "win" : "loss");
+    var exitDigit = "";
+    if (c.exit_spot != null) { var s = String(c.exit_spot); exitDigit = " · exit " + s.charAt(s.length - 1); }
+    row.children[1].textContent += exitDigit;
+    row.querySelector(".res").textContent = (won ? "WIN " : "LOSS ") + (profit >= 0 ? "+" : "") + profit.toFixed(2);
+    if (oc.subId && auth.ws && auth.ws.readyState === 1) { try { wsSend({ forget: oc.subId }); } catch (e) {} }
+    delete openContracts[c.contract_id];
+    busy = false; updateTradeButton();
+    showMsg(won ? "ok" : "info", (won ? "WIN " : "LOSS ") + (profit >= 0 ? "+" : "") + profit.toFixed(2) + " · Session P/L " + session.pnl.toFixed(2));
+    checkLimits();
+  }
+
+  function checkLimits() {
+    var tp = num(t.tp), sl = num(t.sl);
+    if (tp > 0 && session.pnl >= tp - 1e-9) { stopAuto("Take Profit"); showMsg("ok", "Take Profit அடைந்தது (" + session.pnl.toFixed(2) + "). Auto நிறுத்தப்பட்டது."); return true; }
+    if (sl > 0 && session.pnl <= -sl + 1e-9) { stopAuto("Stop Loss"); showMsg("err", "Stop Loss அடைந்தது (" + session.pnl.toFixed(2) + "). Auto நிறுத்தப்பட்டது."); return true; }
+    return false;
+  }
+
+  // ---------- auto mode ----------
+  function stopAuto(reason) {
+    if (autoState.timer) { clearInterval(autoState.timer); autoState.timer = null; }
+    autoState.realConfirmed = false;
+    if (t.auto.checked) { t.auto.checked = false; t.countdown.textContent = reason ? "Auto நிறுத்தப்பட்டது: " + reason : ""; }
+    else if (!reason) t.countdown.textContent = "";
+  }
+
+  function maybeStartCountdown() {
+    if (!t.auto.checked || busy || autoState.timer || !auth.wsOpen) return;
+    autoState.remaining = Number(t.autoDelay.value) || 5;
+    t.countdown.textContent = "Entry in " + autoState.remaining + "s · digit " + (t.digit.value || "—");
+    autoState.timer = setInterval(function () {
+      if (!t.auto.checked) { clearInterval(autoState.timer); autoState.timer = null; return; }
+      autoState.remaining -= 1;
+      if (autoState.remaining > 0) {
+        t.countdown.textContent = "Entry in " + autoState.remaining + "s · digit " + (t.digit.value || "—");
+        return;
+      }
+      clearInterval(autoState.timer); autoState.timer = null;
+      t.countdown.textContent = "Entry now · digit " + (t.digit.value || "—");
+      tradeOnce("auto");
+    }, 1000);
+  }
+
+  function onAutoToggle() {
+    if (t.auto.checked) {
+      if (!auth.wsOpen) { t.auto.checked = false; showMsg("err", TA_ERRORS.notConnected); return; }
+      if (auth.isReal) {
+        if (!t.realAck.checked) { t.auto.checked = false; showMsg("err", "REAL account: முதலில் 'Real பணம் என்று புரிந்துகொண்டேன்' tick பண்ணுங்க."); return; }
+        if (!window.confirm("REAL பணத்தில் Auto mode — ஒவ்வொரு prediction-க்கும் தானாக trade ஆகும். உறுதியா?")) { t.auto.checked = false; return; }
+        autoState.realConfirmed = true;
+      }
+      if (checkLimits()) return;
+      t.countdown.textContent = "Auto ON — அடுத்த tick-க்காக காத்திருக்கிறது…";
+    } else {
+      stopAuto();
+    }
+  }
+
+  // ---------- prediction link ----------
+  function syncDigit(force) {
+    var st = window.__predictor && window.__predictor.getState();
+    t.tradeMarket.textContent = t.market.value;
+    if (!st) return;
+    if ((t.follow.checked || force && String(t.digit.value) === "") && st.prediction != null) t.digit.value = String(st.prediction);
+  }
+
+  window.__predictorHooks = window.__predictorHooks || [];
+  window.__predictorHooks.push(function (kind) {
+    syncDigit(false);
+    if (kind === "tick") maybeStartCountdown();
+  });
+
+  // ---------- events ----------
+  t.btnConnect.addEventListener("click", function () { doConnect(); });
+  t.btnLogout.addEventListener("click", doLogout);
+  t.accSelect.addEventListener("change", switchAccount);
+  t.btnTrade.addEventListener("click", function () { tradeOnce("manual"); });
+  t.auto.addEventListener("change", onAutoToggle);
+  t.digit.addEventListener("input", function () { t.follow.checked = false; });
+  t.follow.addEventListener("change", function () { syncDigit(false); });
+  t.market.addEventListener("change", function () { t.tradeMarket.textContent = t.market.value; });
+  t.realAck.addEventListener("change", function () { if (!t.realAck.checked) stopAuto("REAL உறுதிப்படுத்தல் நீக்கப்பட்டது"); });
+  t.btnPnlReset.addEventListener("click", function () {
+    if (busy) return;
+    session.pnl = 0; session.trades = 0; session.wins = 0; renderPnl();
+  });
+  t.token.addEventListener("keydown", function (e) { if (e.key === "Enter") doConnect(); });
+
+  setInterval(updateTradeButton, 1000);
+  renderPnl();
+  updateTradeButton();
+
+  // Restore remembered token (only if the user opted in on this phone).
+  (function restore() {
+    var tok = null, app = null;
+    try { tok = localStorage.getItem(LS_TOKEN); app = localStorage.getItem(LS_APP); } catch (e) {}
+    if (app) t.appId.value = app;
+    if (tok && app) { t.token.value = tok; t.remember.checked = true; doConnect(); }
+  })();
+
+  window.__trade = {
+    getState: function () {
+      return {
+        connected: auth.wsOpen, account: auth.account && auth.account.account_id, isReal: auth.isReal,
+        busy: busy, pnl: session.pnl, trades: session.trades, wins: session.wins, auto: t.auto.checked,
+        hasToken: !!auth.token, open: Object.keys(openContracts).length
+      };
+    },
+    _forceDrop: function () { if (auth.ws) { try { auth.ws.close(); } catch (e) {} } }
   };
 })();
   </script>
