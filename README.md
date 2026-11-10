@@ -7,3 +7,5 @@ The page now supports Matches, Differs, Even, Odd, Over, Under, Rise, Fall, High
 The page now has a Prediction digit card with auto-trade on the predicted digit (demo/educational only, no edge).
 
 Auto-trade can wait until the hot digit frequency reaches a set % threshold (demo/educational only, no edge).
+
+A new Rise/Fall tab auto-picks direction (momentum/reverse) and trades continuously (demo/educational only, no edge).

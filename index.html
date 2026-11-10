@@ -107,7 +107,7 @@
       text-shadow: 0 0 36px rgba(168,85,247,0.85), 0 0 8px rgba(34,211,238,0.45);
       transition: transform .18s ease, text-shadow .18s ease;
     }
-    .pred-hero .big-digit.pulse { transform: scale(1.06); }
+    .pred-hero .big-digit.pulse, .pred-hero .big-dir.pulse { transform: scale(1.06); }
     .pred-stats { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; margin-top: 12px; text-align: left; padding: 10px 12px; border-radius: 14px; background: rgba(11,15,26,0.45); border: 1px solid rgba(168,85,247,0.3); }
     .pred-stats .rate { font-size: 1.2rem; }
     .pred-note { margin: 10px 0 0; font-size: 0.82rem; color: #e9d5ff; line-height: 1.45; }
@@ -122,6 +122,22 @@
     .fixed-pills { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; margin-top: 6px; }
     .fixed-pills button { min-height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg2); color: var(--ink); font-weight: 900; font-size: 1rem; cursor: pointer; padding: 0; }
     .fixed-pills button[aria-pressed=true] { background: linear-gradient(135deg, #a855f7, #22d3ee); color: #fff; border-color: transparent; box-shadow: 0 0 14px rgba(168,85,247,0.55); }
+    .mode-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+    .mode-tabs button {
+      min-height: var(--tap); border-radius: 12px; border: 1px solid var(--line); background: var(--bg2);
+      color: var(--ink); font-weight: 800; cursor: pointer;
+    }
+    .mode-tabs button[aria-selected=true][data-mode=matches] { background: linear-gradient(135deg, #a855f7, #6366f1); color: #fff; border-color: transparent; box-shadow: 0 6px 18px rgba(168,85,247,0.4); }
+    .mode-tabs button[aria-selected=true][data-mode=risefall] { background: linear-gradient(135deg, #22c55e, #06b6d4); color: #04140b; border-color: transparent; box-shadow: 0 6px 18px rgba(34,197,94,0.35); }
+    .pred-hero.mode-rf { border-color: rgba(34,197,94,0.55); background: linear-gradient(160deg, rgba(34,197,94,0.22), rgba(239,68,68,0.12) 70%), var(--bg-card); }
+    .big-dir { font-size: 3.6rem; font-weight: 900; line-height: 1.05; letter-spacing: -0.03em; margin: 6px 0 4px; text-align: center; }
+    .big-dir.rise { color: #4ade80; text-shadow: 0 0 28px rgba(34,197,94,0.7); }
+    .big-dir.fall { color: #f87171; text-shadow: 0 0 28px rgba(239,68,68,0.7); }
+    .rf-detail { text-align: center; color: #bbf7d0; font-size: 0.82rem; font-weight: 600; margin-top: 2px; }
+    .rf-fixed { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+    .rf-fixed button { min-height: 42px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg2); color: var(--ink); font-weight: 900; cursor: pointer; }
+    .rf-fixed button[aria-pressed=true][data-dir=rise] { background: var(--c-rise); color: #04140b; border-color: transparent; }
+    .rf-fixed button[aria-pressed=true][data-dir=fall] { background: var(--c-fall); color: #fff; border-color: transparent; }
     .pred-auto-box { margin-top: 14px; padding: 12px; border-radius: 16px; border: 1px solid rgba(168,85,247,0.5); background: linear-gradient(160deg, rgba(168,85,247,0.18), rgba(34,211,238,0.08) 70%), var(--bg2); }
     .pred-auto-box h3 { margin: 0 0 6px; }
     .next-stake { min-height: var(--tap); display: flex; align-items: center; font-weight: 900; font-variant-numeric: tabular-nums; font-size: 1.05rem; color: #f5d0fe; padding: 0 4px; }
@@ -262,7 +278,7 @@
           <option value="1HZ100V" selected>1HZ100V</option>
         </select>
       </label>
-      <label class="field">Frequency window
+      <label class="field" id="ctrl-window">Frequency window
         <select id="window" aria-label="Frequency window">
           <option value="25">Last 25</option>
           <option value="50">Last 50</option>
@@ -270,7 +286,7 @@
           <option value="500">Last 500</option>
         </select>
       </label>
-      <label class="field">Prediction method
+      <label class="field" id="ctrl-method">Prediction method
         <select id="method" aria-label="Prediction method">
           <option value="last" selected>Last digit (repeat)</option>
           <option value="cold">Least frequent (cold, window)</option>
@@ -278,12 +294,32 @@
           <option value="fixed">Fixed digit</option>
         </select>
       </label>
+      <label class="field hidden" id="ctrl-rf-method">Rise/Fall method
+        <select id="rf-method" aria-label="Rise/Fall method">
+          <option value="momentum" selected>Momentum (last N majority)</option>
+          <option value="reverse">Reverse (mean reversion)</option>
+          <option value="fixed">Fixed (always Rise or Fall)</option>
+        </select>
+      </label>
+      <label class="field hidden" id="ctrl-rf-n">Lookback N
+        <input type="number" id="rf-n" value="5" min="2" max="20" step="1" inputmode="numeric">
+      </label>
     </div>
 
+    <div class="mode-tabs" id="pred-tabs" role="tablist" aria-label="Prediction mode">
+      <button type="button" id="tab-matches" data-mode="matches" aria-selected="true">Matches</button>
+      <button type="button" id="tab-risefall" data-mode="risefall" aria-selected="false">Rise / Fall</button>
+    </div>
     <section class="card pred-card pred-hero" id="pred-hero">
-      <h2>Prediction digit</h2>
+      <h2 id="pred-title">Prediction digit</h2>
       <div id="method-label" class="method-label">Last digit (repeat)</div>
       <div id="prediction" class="big-digit" aria-live="polite">—</div>
+      <div id="rf-prediction" class="big-dir hidden" aria-live="polite">—</div>
+      <div id="rf-detail" class="rf-detail hidden"></div>
+      <div id="rf-fixed-wrap" class="rf-fixed hidden" role="group" aria-label="Fixed direction">
+        <button type="button" data-dir="rise" aria-pressed="true">▲ Always Rise</button>
+        <button type="button" data-dir="fall" aria-pressed="false">▼ Always Fall</button>
+      </div>
       <div id="fixed-wrap" class="fixed-wrap hidden">
         <div class="small">நிலை இலக்கம் — இந்த இலக்கமே ஒவ்வொரு tick-க்கும் prediction</div>
         <div class="fixed-pills" id="fixed-pills" role="group" aria-label="Fixed digit">
@@ -310,6 +346,7 @@
         </div>
       </div>
       <p class="pred-note" lang="ta" id="pred-note">இது இந்த முறை கடந்த ticks-ல் எத்தனை தடவை சரியா வந்தது என்பது மட்டுமே — "confidence" அல்ல. Matches-ல் சுமார் 10% தான் வாய்ப்பு; நஷ்டம் இல்லாமல் இருக்க payout-ஐ பொறுத்து சுமார் 11.18% வெற்றி வேணும்.</p>
+      <p class="pred-note hidden" lang="ta" id="rf-note">இது இந்த முறை கடந்த ticks-ல் எத்தனை தடவை சரியா வந்தது மட்டுமே — "confidence" அல்ல. Rise/Fall-ல் சுமார் 50% தான் வாய்ப்பு; நஷ்டம் இல்லாமல் இருக்க சுமார் 53.03% வெற்றி வேணும் (0.35 ÷ 0.66 payout).</p>
       <div class="wait-box" id="wait-box">
         <label class="check"><input type="checkbox" id="wait-signal"> Wait for signal — hot digit % தேவை ஆனால்தான் trade</label>
         <div class="row3" id="wait-fields">
@@ -437,7 +474,7 @@
 
         <div class="pred-auto-box" id="pred-auto-box">
           <h3>Auto trade prediction</h3>
-          <p class="ta-note">காட்டப்படும் prediction இலக்கத்திலேயே Matches trade. Wait for signal ON ஆனால், hot digit-ன் frequency threshold-ஐ தாண்டும் வரை காத்திருக்கும்; தாண்டியதும் அந்த hot digit-ல வாங்கும். <b>நிறுத்து</b> காத்திருப்பையும் நிறுத்தும். TP / SL / இணைப்பு துண்டானால் உடனே நிற்கும்.</p>
+          <p class="ta-note">Matches tab: காட்டப்படும் இலக்கத்தில் Matches. Wait for signal ON ஆனால் hot % தேவை வரை காத்திருக்கும். Rise/Fall tab: சமீபத்திய ticks-ன் திசையை வைத்து Rise அல்லது Fall தானே முடிவு செய்து, ஒவ்வொரு cycle-லும் CALL/PUT trade (wait இல்லை). <b>நிறுத்து</b> உடனே நிற்கும். TP / SL / இணைப்பு துண்டானாலும் நிற்கும்.</p>
           <div class="row3">
             <label class="field">Martingale ×<input type="number" id="mg-mult" value="1" min="1" step="0.05" inputmode="decimal"></label>
             <label class="field">Max stake ($)<input type="number" id="max-stake" value="10" min="0.35" step="0.01" inputmode="decimal"></label>
@@ -496,7 +533,7 @@
 
     <footer>
       <p class="ta">இந்த இலக்கங்கள் சீரற்றவை போலவே நடந்து கொள்கின்றன. Matches வெற்றி வாய்ப்பு சுமார் 10%. 0.35 பந்தயத்திற்கு பேஅவுட் 3.13 என்பதால், இலாபத்திற்கு தேவை 11.18% வெற்றி விகிதம். இது நிதி ஆலோசனை அல்ல. டெமோ / கல்வி பயன்பாடு மட்டும்.</p>
-      <p>Digits behave like random draws. A Matches win is expected about 10% of the time, which is below the 11.18% break-even rate (payout 3.13 on a 0.35 stake). This is not financial advice. Demo / educational use only.</p>
+      <p>Digits behave like random draws. A Matches win is expected about 10% of the time, which is below the 11.18% break-even rate (payout 3.13 on a 0.35 stake). Rise/Fall is close to a coin flip (~50%), below the 53.03% break-even (payout 0.66 on a 0.35 stake). This is not financial advice. Demo / educational use only.</p>
     </footer>
   </div>
 
@@ -573,6 +610,52 @@
     return all.slice(all.length - size);
   }
 
+  var RF_METHOD_LABELS = {
+    momentum: "Momentum (last N majority)",
+    reverse: "Reverse (mean reversion)",
+    fixed: "Fixed direction"
+  };
+
+  function lastMoves(prices, n) {
+    var out = { up: 0, down: 0, tie: 0, last: 0, n: 0 };
+    if (!prices || prices.length < 2) return out;
+    var start = Math.max(1, prices.length - n);
+    for (var i = start; i < prices.length; i++) {
+      var a = Number(prices[i - 1]), b = Number(prices[i]);
+      var d = b > a ? 1 : b < a ? -1 : 0;
+      if (d > 0) out.up++;
+      else if (d < 0) out.down++;
+      else out.tie++;
+      if (d !== 0) out.last = d;
+      out.n++;
+    }
+    return out;
+  }
+
+  function predictRiseFall(method, prices, n, fixedDir) {
+    method = method || "momentum";
+    if (method === "fixed") return fixedDir === "fall" ? "fall" : "rise";
+    var m = lastMoves(prices, n || 5);
+    if (m.n === 0) return null;
+    var maj = null;
+    if (m.up > m.down) maj = "rise";
+    else if (m.down > m.up) maj = "fall";
+    else if (m.last > 0) maj = "rise";
+    else if (m.last < 0) maj = "fall";
+    if (!maj) return null;
+    if (method === "reverse") return maj === "rise" ? "fall" : "rise";
+    return maj;
+  }
+
+  function isRfMode() { return state.predMode === "risefall"; }
+  function rfLookback() { return Math.round(clampNum(el.rfN && el.rfN.value, 2, 20, 5)); }
+  function rfMethodVal() { return (el.rfMethod && el.rfMethod.value) || "momentum"; }
+  function horizonFor(mode) {
+    var n = (state.modeTicks && state.modeTicks[mode]) || (mode === "risefall" ? 1 : 2);
+    if (!(n >= 1 && n <= 10 && Math.floor(n) === n)) n = mode === "risefall" ? 1 : 2;
+    return n;
+  }
+
   // --- UI ---
   var el = {
     status: document.getElementById("status"),
@@ -608,7 +691,21 @@
     hint: document.getElementById("tracker-hint"),
     reset: document.getElementById("reset"),
     freq: document.getElementById("freq"),
-    strip: document.getElementById("strip")
+    strip: document.getElementById("strip"),
+    predTabs: document.getElementById("pred-tabs"),
+    predTitle: document.getElementById("pred-title"),
+    rfPrediction: document.getElementById("rf-prediction"),
+    rfDetail: document.getElementById("rf-detail"),
+    rfMethod: document.getElementById("rf-method"),
+    rfN: document.getElementById("rf-n"),
+    rfFixedWrap: document.getElementById("rf-fixed-wrap"),
+    rfNote: document.getElementById("rf-note"),
+    predNote: document.getElementById("pred-note"),
+    waitBox: document.getElementById("wait-box"),
+    ctrlWindow: document.getElementById("ctrl-window"),
+    ctrlMethod: document.getElementById("ctrl-method"),
+    ctrlRfMethod: document.getElementById("ctrl-rf-method"),
+    ctrlRfN: document.getElementById("ctrl-rf-n")
   };
 
   function setStatus(kind, text) {
@@ -695,8 +792,8 @@
   }
 
   function payoutInfo() {
-    var info = window.__payoutInfo || { stake: 0.35, payout: 3.13, be: 0.1118 };
-    return info;
+    if (isRfMode()) return window.__payoutInfoRF || { stake: 0.35, payout: 0.66, be: 0.35 / 0.66 };
+    return window.__payoutInfo || { stake: 0.35, payout: 3.13, be: 0.1118 };
   }
 
   function renderBreakEven() {
@@ -734,27 +831,34 @@
   }
 
   function renderPredStats() {
-    var n = state.rollTotal, h = state.rollHits;
+    var n, h, label;
+    if (isRfMode()) {
+      n = state.rfRollTotal; h = state.rfRollHits;
+      label = horizonFor("risefall") + "-tick Rise/Fall";
+    } else {
+      n = state.rollTotal; h = state.rollHits;
+      label = horizonFor("matches") + "-tick Matches";
+    }
     if (!el.predRate) return;
     if (n === 0) {
       el.predRate.textContent = "—";
-      el.predSample.textContent = "Hit rate · 0 / 0 (" + currentHorizon() + "-tick Matches)";
+      el.predSample.textContent = "Hit rate · 0 / 0 (" + label + ")";
     } else {
       el.predRate.textContent = ((h / n) * 100).toFixed(2) + "%";
-      el.predSample.textContent = "Hit rate · " + h + " / " + n + " (" + currentHorizon() + "-tick Matches)";
+      el.predSample.textContent = "Hit rate · " + h + " / " + n + " (" + label + ")";
     }
-    renderSignalRoll();
+    if (!isRfMode()) renderSignalRoll();
     renderBreakEven();
   }
 
-  function pulsePred(prev, next) {
-    if (!el.prediction) return;
-    if (prev === next) return;
-    el.prediction.classList.remove("pulse");
-    void el.prediction.offsetWidth;
-    el.prediction.classList.add("pulse");
-    setTimeout(function () { el.prediction.classList.remove("pulse"); }, 220);
+  function pulsePredEl(node, prev, next) {
+    if (!node || prev === next) return;
+    node.classList.remove("pulse");
+    void node.offsetWidth;
+    node.classList.add("pulse");
+    setTimeout(function () { node.classList.remove("pulse"); }, 220);
   }
+  function pulsePred(prev, next) { pulsePredEl(el.prediction, prev, next); }
 
   function renderTracker() {
     el.hits.textContent = state.hits + " / " + state.total;
@@ -769,38 +873,77 @@
     renderPredStats();
   }
 
+  function refreshRfPrediction() {
+    var n = rfLookback();
+    var method = rfMethodVal();
+    var moves = lastMoves(state.prices, n);
+    state.pendingRf = predictRiseFall(method, state.prices, n, state.fixedRf);
+    state.rfMoves = moves;
+    return moves;
+  }
+
   function refreshViews() {
     var size = Number(el.window.value);
     var method = el.method.value;
     var win = windowDigits(state.digits, size);
-    el.methodLabel.textContent = METHOD_LABELS[method] || method;
-    if (el.fixedWrap) el.fixedWrap.className = method === "fixed" ? "fixed-wrap" : "fixed-wrap hidden";
     if (state.lastPrice == null) {
       el.price.textContent = "—";
       el.lastDigit.textContent = "—";
     } else {
       el.price.textContent = paddedPrice(state.lastPrice, state.pipSize);
-      el.lastDigit.textContent = String(state.digits[state.digits.length - 1]);
+      el.lastDigit.textContent = state.digits.length ? String(state.digits[state.digits.length - 1]) : "—";
     }
-    var prev = state.pendingPred;
-    if (waitEnabled()) {
-      var sig = getHotSignal();
-      state.pendingPred = sig.hot;
-      el.methodLabel.textContent = "Hot digit (wait for signal, last " + sig.window + ")";
+    var rfMoves = refreshRfPrediction();
+    if (isRfMode()) {
+      var rfm = rfMethodVal();
+      el.methodLabel.textContent = RF_METHOD_LABELS[rfm] || rfm;
+      if (rfm === "momentum" || rfm === "reverse") {
+        el.methodLabel.textContent += " · N=" + rfLookback();
+      }
+      if (el.fixedWrap) el.fixedWrap.className = "fixed-wrap hidden";
+      if (el.rfFixedWrap) el.rfFixedWrap.className = rfm === "fixed" ? "rf-fixed" : "rf-fixed hidden";
+      if (el.prediction) el.prediction.classList.add("hidden");
+      if (el.rfPrediction) {
+        el.rfPrediction.classList.remove("hidden");
+        var dir = state.pendingRf;
+        var shown = dir == null ? "—" : (dir === "rise" ? "RISE ▲" : "FALL ▼");
+        if (el.rfPrediction.textContent !== shown) pulsePredEl(el.rfPrediction, el.rfPrediction.textContent, shown);
+        el.rfPrediction.textContent = shown;
+        el.rfPrediction.className = "big-dir" + (dir === "rise" ? " rise" : dir === "fall" ? " fall" : "");
+      }
+      if (el.rfDetail) {
+        el.rfDetail.classList.remove("hidden");
+        el.rfDetail.textContent = rfMoves.n ? ("up " + rfMoves.up + " / down " + rfMoves.down + (rfMoves.tie ? " / tie " + rfMoves.tie : "") + " · last " + rfMoves.n) : "திசை கணக்கிற்கு ticks போதவில்லை";
+      }
     } else {
-      state.pendingPred = predictDigit(method, win, state.fixedDigit);
+      el.methodLabel.textContent = METHOD_LABELS[method] || method;
+      if (el.fixedWrap) el.fixedWrap.className = method === "fixed" ? "fixed-wrap" : "fixed-wrap hidden";
+      if (el.rfFixedWrap) el.rfFixedWrap.className = "rf-fixed hidden";
+      if (el.prediction) el.prediction.classList.remove("hidden");
+      if (el.rfPrediction) { el.rfPrediction.classList.add("hidden"); el.rfPrediction.className = "big-dir hidden"; }
+      if (el.rfDetail) el.rfDetail.classList.add("hidden");
+      if (waitEnabled()) {
+        var sig = getHotSignal();
+        state.pendingPred = sig.hot;
+        el.methodLabel.textContent = "Hot digit (wait for signal, last " + sig.window + ")";
+      } else {
+        state.pendingPred = predictDigit(method, win, state.fixedDigit);
+      }
+      var shownM = state.pendingPred == null ? "—" : String(state.pendingPred);
+      if (el.prediction.textContent !== shownM) pulsePred(el.prediction.textContent, shownM);
+      el.prediction.textContent = shownM;
     }
-    var shown = state.pendingPred == null ? "—" : String(state.pendingPred);
-    if (el.prediction.textContent !== shown) pulsePred(el.prediction.textContent, shown);
-    el.prediction.textContent = shown;
-    renderFreq(win, waitEnabled() ? "hot" : method);
+    renderFreq(win, !isRfMode() && waitEnabled() ? "hot" : method);
     renderStrip(state.digits);
     renderTracker();
     if (el.predHero) {
       var cls = "card pred-card pred-hero";
-      if (waitEnabled()) cls += " signal-on";
-      var sigNow = getHotSignal();
-      if (waitEnabled() && sigNow.ok) cls += " signal-fire";
+      if (isRfMode()) cls += " mode-rf";
+      else {
+        if (waitEnabled()) cls += " signal-on";
+        var sigNow = getHotSignal();
+        if (waitEnabled() && sigNow.ok) cls += " signal-fire";
+      }
       el.predHero.className = cls;
     }
     // Idle status (when auto-pred is not running, trade script owns the text otherwise).
@@ -833,6 +976,16 @@
   // --- app state ---
   var state = {
     digits: [],
+    prices: [],
+    predMode: "matches",
+    modeTicks: { matches: 2, risefall: 1 },
+    pendingRf: null,
+    fixedRf: "rise",
+    rfMoves: { up: 0, down: 0, tie: 0, last: 0, n: 0 },
+    rfRollHits: 0,
+    rfRollTotal: 0,
+    rfRollWindow: [],
+    rfQueue: [],
     lastPrice: null,
     lastEpoch: 0,
     pipSize: PIP_FALLBACK["1HZ100V"],
@@ -863,6 +1016,12 @@
     reconnectTimer: null
   };
 
+  function resetRfRoll() {
+    state.rfRollHits = 0;
+    state.rfRollTotal = 0;
+    state.rfRollWindow = [];
+    state.rfQueue = [];
+  }
   function resetRoll() {
     state.rollHits = 0;
     state.rollTotal = 0;
@@ -872,6 +1031,7 @@
     state.signalRollTotal = 0;
     state.signalRollWindow = [];
     state.signalQueue = [];
+    resetRfRoll();
     renderPredStats();
   }
 
@@ -883,14 +1043,40 @@
   }
 
   function enqueuePrediction() {
-    if (state.pendingPred == null || !state.digits.length) return;
-    state.predQueue.push({ left: currentHorizon(), pred: state.pendingPred });
-    if (state.predQueue.length > 50) state.predQueue = state.predQueue.slice(-30);
+    if (state.pendingPred != null && state.digits.length) {
+      state.predQueue.push({ left: horizonFor("matches"), pred: state.pendingPred });
+      if (state.predQueue.length > 50) state.predQueue = state.predQueue.slice(-30);
+    }
     var sig = getHotSignal();
     if (sig.ok && sig.hot != null) {
-      state.signalQueue.push({ left: currentHorizon(), pred: sig.hot });
+      state.signalQueue.push({ left: horizonFor("matches"), pred: sig.hot });
       if (state.signalQueue.length > 50) state.signalQueue = state.signalQueue.slice(-30);
     }
+    if (state.pendingRf && state.prices.length) {
+      state.rfQueue.push({ left: horizonFor("risefall"), dir: state.pendingRf, entry: Number(state.lastPrice) });
+      if (state.rfQueue.length > 50) state.rfQueue = state.rfQueue.slice(-30);
+    }
+  }
+
+  function resolveRfQueue() {
+    if (!state.prices.length) return;
+    var exit = Number(state.prices[state.prices.length - 1]);
+    var kept = [];
+    for (var i = 0; i < state.rfQueue.length; i++) {
+      var q = state.rfQueue[i];
+      q.left -= 1;
+      if (q.left > 0) { kept.push(q); continue; }
+      if (q.left === 0) {
+        var hit = q.dir === "rise" ? exit > q.entry : exit < q.entry;
+        state.rfRollWindow.push(!!hit);
+        if (state.rfRollWindow.length > 200) state.rfRollWindow.shift();
+        var hits = 0, w = state.rfRollWindow;
+        for (var j = 0; j < w.length; j++) if (w[j]) hits += 1;
+        state.rfRollHits = hits;
+        state.rfRollTotal = w.length;
+      }
+    }
+    state.rfQueue = kept;
   }
 
   function resolveOneQueue(queueName, windowName, hitsName, totalName, digit) {
@@ -917,6 +1103,7 @@
     var digit = state.digits[state.digits.length - 1];
     resolveOneQueue("predQueue", "rollWindow", "rollHits", "rollTotal", digit);
     resolveOneQueue("signalQueue", "signalRollWindow", "signalRollHits", "signalRollTotal", digit);
+    resolveRfQueue();
   }
 
   function setFixedDigit(d) {
@@ -972,15 +1159,82 @@
       if (b) setFixedDigit(b.getAttribute("data-d"));
     });
   }
+
+  function applyPredModeUi() {
+    var rf = isRfMode();
+    if (el.ctrlWindow) el.ctrlWindow.classList.toggle("hidden", rf);
+    if (el.ctrlMethod) el.ctrlMethod.classList.toggle("hidden", rf);
+    if (el.ctrlRfMethod) el.ctrlRfMethod.classList.toggle("hidden", !rf);
+    if (el.ctrlRfN) el.ctrlRfN.classList.toggle("hidden", !rf || rfMethodVal() === "fixed");
+    if (el.waitBox) el.waitBox.classList.toggle("hidden", rf);
+    if (el.predNote) el.predNote.classList.toggle("hidden", rf);
+    if (el.rfNote) el.rfNote.classList.toggle("hidden", !rf);
+    if (el.predTitle) el.predTitle.textContent = rf ? "Rise / Fall prediction" : "Prediction digit";
+    if (el.predTabs) {
+      var btns = el.predTabs.querySelectorAll("button[data-mode]");
+      for (var i = 0; i < btns.length; i++) btns[i].setAttribute("aria-selected", btns[i].getAttribute("data-mode") === state.predMode ? "true" : "false");
+    }
+    var ticksEl2 = document.getElementById("ticks");
+    if (ticksEl2) ticksEl2.value = String(horizonFor(state.predMode));
+  }
+
+  function setPredMode(mode) {
+    if (mode !== "risefall") mode = "matches";
+    if (mode === state.predMode) { applyPredModeUi(); refreshViews(); return; }
+    state.predMode = mode;
+    applyPredModeUi();
+    refreshViews();
+    notifyHooks("mode");
+  }
+
+  function setFixedRf(dir) {
+    state.fixedRf = dir === "fall" ? "fall" : "rise";
+    if (el.rfFixedWrap) {
+      var btns = el.rfFixedWrap.querySelectorAll("button[data-dir]");
+      for (var i = 0; i < btns.length; i++) btns[i].setAttribute("aria-pressed", btns[i].getAttribute("data-dir") === state.fixedRf ? "true" : "false");
+    }
+    resetRfRoll();
+    refreshViews();
+  }
+
+  if (el.predTabs) {
+    el.predTabs.addEventListener("click", function (e) {
+      var b = e.target.closest ? e.target.closest("button[data-mode]") : null;
+      if (b) setPredMode(b.getAttribute("data-mode"));
+    });
+  }
+  if (el.rfMethod) {
+    el.rfMethod.addEventListener("change", function () {
+      applyPredModeUi();
+      resetRfRoll();
+      refreshViews();
+    });
+  }
+  if (el.rfN) {
+    el.rfN.addEventListener("change", function () { resetRfRoll(); refreshViews(); });
+    el.rfN.addEventListener("input", function () { refreshViews(); });
+  }
+  if (el.rfFixedWrap) {
+    el.rfFixedWrap.addEventListener("click", function (e) {
+      var b = e.target.closest ? e.target.closest("button[data-dir]") : null;
+      if (b) setFixedRf(b.getAttribute("data-dir"));
+    });
+  }
   var ticksEl = document.getElementById("ticks");
   if (ticksEl) {
-    ticksEl.addEventListener("change", function () { resetRoll(); renderPredStats(); });
+    ticksEl.addEventListener("change", function () {
+      var v = Number(ticksEl.value);
+      if (v >= 1 && v <= 10) state.modeTicks[state.predMode] = v;
+      if (isRfMode()) resetRfRoll(); else { state.predQueue = []; state.rollWindow = []; state.rollHits = 0; state.rollTotal = 0; }
+      renderPredStats();
+    });
     ticksEl.addEventListener("input", function () { renderPredStats(); });
   }
   el.market.addEventListener("change", function () {
     state.symbol = el.market.value;
     resetTracker();
     state.digits = [];
+    state.prices = [];
     state.lastPrice = null;
     state.lastEpoch = 0;
     state.pendingPred = null;
@@ -1039,8 +1293,10 @@
     state.lastPrice = price;
     state.lastEpoch = epoch;
     state.digits.push(digit);
+    state.prices.push(Number(price));
     if (state.digits.length > HISTORY_COUNT) {
       state.digits = state.digits.slice(state.digits.length - HISTORY_COUNT);
+      state.prices = state.prices.slice(state.prices.length - HISTORY_COUNT);
     }
     if (state.readyToScore) resolvePredQueue();
     var wasReady = state.readyToScore;
@@ -1067,9 +1323,11 @@
       if (msg.pip_size != null) state.pipSize = msg.pip_size;
       else state.pipSize = PIP_FALLBACK[state.symbol] || state.pipSize;
       state.digits = [];
+      state.prices = [];
       state.lastEpoch = 0;
       for (var i = 0; i < prices.length; i++) {
         state.digits.push(lastDigit(prices[i], state.pipSize));
+        state.prices.push(Number(prices[i]));
         state.lastPrice = prices[i];
         if (times[i]) state.lastEpoch = times[i];
       }
@@ -1214,7 +1472,14 @@
         signalRollHits: state.signalRollHits,
         signalRollTotal: state.signalRollTotal,
         waitOn: waitEnabled(),
-        horizon: currentHorizon(),
+        horizon: horizonFor(state.predMode),
+        predMode: state.predMode,
+        rfPrediction: state.pendingRf,
+        rfMethod: rfMethodVal(),
+        rfN: rfLookback(),
+        rfRollHits: state.rfRollHits,
+        rfRollTotal: state.rfRollTotal,
+        prices: state.prices.length,
         endpoint: state.endpointUrl,
         status: el.statusText.textContent
       };
@@ -1227,6 +1492,12 @@
     signalThreshold: signalThreshold,
     signalCooldownTicks: signalCooldownTicks,
     renderSignalRoll: renderSignalRoll,
+    isRfMode: isRfMode,
+    setPredMode: setPredMode,
+    getRfPrediction: function () { return state.pendingRf; },
+    predictRiseFall: predictRiseFall,
+    lastMoves: lastMoves,
+    setFixedRf: setFixedRf,
     // Test helpers: inject digits through the same live-tick path.
     holdLive: function (on) { state.holdLive = !!on; },
     appendDigitForTest: function (d) {
@@ -1245,17 +1516,40 @@
       state.digits = list;
       state.readyToScore = list.length > 0;
       state.holdLive = true;
-      if (list.length) {
-        var dec = decimalsOf(state.pipSize);
-        var f = Math.pow(10, dec);
-        var last = list[list.length - 1];
-        state.lastPrice = (Math.floor(1000 * f / 10) * 10 + last) / f;
+      var dec = decimalsOf(state.pipSize);
+      var f = Math.pow(10, dec);
+      state.prices = [];
+      for (var j = 0; j < list.length; j++) {
+        state.prices.push((Math.floor((1000 + j * 0.01) * f / 10) * 10 + list[j]) / f);
       }
+      if (list.length) state.lastPrice = state.prices[state.prices.length - 1];
+      resetRoll();
+      refreshViews();
+    },
+    appendPriceForTest: function (price) {
+      onTickPayload({ quote: Number(price), epoch: (state.lastEpoch || 1) + 1, symbol: state.symbol, pip_size: state.pipSize }, true);
+    },
+    setPricesForTest: function (arr) {
+      var list = [];
+      for (var i = 0; i < arr.length; i++) list.push(Number(arr[i]));
+      state.prices = list;
+      state.digits = list.map(function (q) { return lastDigit(q, state.pipSize); });
+      state.readyToScore = list.length > 0;
+      state.holdLive = true;
+      state.lastPrice = list.length ? list[list.length - 1] : null;
       resetRoll();
       refreshViews();
     }
   };
+  applyPredModeUi();
   window.__payoutInfo = window.__payoutInfo || { stake: 0.35, payout: 3.13, be: 0.1118 };
+  window.__payoutInfoRF = window.__payoutInfoRF || { stake: 0.35, payout: 0.66, be: 0.35 / 0.66 };
+  window.__setPayoutInfoRF = function (stake, payout) {
+    stake = Number(stake); payout = Number(payout);
+    if (!(stake > 0) || !(payout > 0)) return;
+    window.__payoutInfoRF = { stake: stake, payout: payout, be: stake / payout };
+    if (isRfMode()) renderBreakEven();
+  };
   window.__setPayoutInfo = function (stake, payout) {
     stake = Number(stake); payout = Number(payout);
     if (!(stake > 0) || !(payout > 0)) return;
@@ -1693,7 +1987,27 @@
     t.nextStake.textContent = s.toFixed(2);
   }
 
+  function isRfTradeMode() {
+    return !!(window.__predictor && window.__predictor.isRfMode && window.__predictor.isRfMode());
+  }
+  function displayedRfDirection() {
+    if (window.__predictor && window.__predictor.getRfPrediction) {
+      var d = window.__predictor.getRfPrediction();
+      if (d === "rise" || d === "fall") return d;
+    }
+    var st = window.__predictor && window.__predictor.getState && window.__predictor.getState();
+    if (st && (st.rfPrediction === "rise" || st.rfPrediction === "fall")) return st.rfPrediction;
+    return null;
+  }
+  function predEntryLabel() {
+    if (isRfTradeMode()) {
+      var d = displayedRfDirection();
+      return "Rise/Fall " + (d ? d.toUpperCase() : "—");
+    }
+    return "Matches " + (displayedPrediction() != null ? displayedPrediction() : "—");
+  }
   function waitEnabled() {
+    if (isRfTradeMode()) return false;
     return !!(t.waitSignal && t.waitSignal.checked);
   }
   function publishSignalTradeInfo() {
@@ -1789,15 +2103,27 @@
     if (!auth.ws || !auth.wsOpen) { showMsg("err", TA_ERRORS.notConnected); return Promise.resolve("noconn"); }
     if (source === "autopred" && !predAuto.running) return Promise.resolve("stopped");
     var displayed = displayedPrediction();
+    var rfDir = null;
     if (source === "autopred") {
-      if (displayed == null) {
-        showMsg("info", "Prediction இலக்கம் வரவில்லை — அடுத்த tick-க்காக காத்திருக்கிறது…");
-        schedulePredNext(800);
-        return Promise.resolve("wait");
+      if (isRfTradeMode()) {
+        rfDir = displayedRfDirection();
+        if (rfDir == null) {
+          showMsg("info", "திசை இன்னும் தெரியவில்லை — அடுத்த tick-க்காக காத்திருக்கிறது…");
+          schedulePredNext(800);
+          return Promise.resolve("wait");
+        }
+        var want = rfDir === "fall" ? "PUT" : "CALL";
+        if (ctype !== want) setCtype(want);
+      } else {
+        if (displayed == null) {
+          showMsg("info", "Prediction இலக்கம் வரவில்லை — அடுத்த tick-க்காக காத்திருக்கிறது…");
+          schedulePredNext(800);
+          return Promise.resolve("wait");
+        }
+        if (ctype !== "DIGITMATCH") setCtype("DIGITMATCH");
+        t.follow.checked = true;
+        t.digit.value = String(displayed);
       }
-      if (ctype !== "DIGITMATCH") setCtype("DIGITMATCH");
-      t.follow.checked = true;
-      t.digit.value = String(displayed);
     }
     var inp = readInputs();
     if (inp.error) { showMsg("err", inp.error); if (source === "auto" || source === "autopred") stopAuto("உள்ளீடு பிழை"); return Promise.resolve("input"); }
@@ -1840,7 +2166,7 @@
     var currency = (auth.account && auth.account.currency) || "USD";
     var entry = null;
     var barrierDigit = inp.digit;
-    lastBuy = { displayed: displayed, barrier: barrierDigit, exit: null, profit: null, stake: inp.stake, contractId: null };
+    lastBuy = { displayed: displayed, barrier: barrierDigit, exit: null, profit: null, stake: inp.stake, contractId: null, dir: rfDir || (inp.ct === "PUT" ? "fall" : inp.ct === "CALL" ? "rise" : null) };
     showMsg("info", "Proposal கேட்கிறது… (" + inp.desc + ", " + inp.symbol + ")");
     var preq = {
       proposal: 1, amount: inp.stake, basis: "stake", contract_type: inp.ct, currency: currency,
@@ -1858,6 +2184,9 @@
       if (inp.ct === "DIGITMATCH" && payout > 0) {
         if (window.__setPayoutInfo) window.__setPayoutInfo(ask, payout);
       }
+      if ((inp.ct === "CALL" || inp.ct === "PUT") && payout > 0) {
+        if (window.__setPayoutInfoRF) window.__setPayoutInfoRF(ask, payout);
+      }
       if ((source === "autopred" && (!predAuto.running || predAuto.stopBuy)) || (source === "auto" && !t.auto.checked)) {
         throw mkErr("Stopped", "Stopped before buy");
       }
@@ -1872,8 +2201,11 @@
         mid += " · pred " + barrierDigit;
         if (displayed != null && Number(displayed) !== Number(barrierDigit)) mid += " (shown " + displayed + ")";
       }
+      if (inp.ct === "CALL" || inp.ct === "PUT") {
+        mid += " · pred " + (inp.ct === "PUT" ? "FALL" : "RISE");
+      }
       var row = logEntry("open", timeNow(), mid, "…", inp.ct);
-      entry = { row: row, stake: Number(buy.buy_price), digit: barrierDigit, displayed: displayed, symbol: inp.symbol, ticks: inp.ticks, payout: Number(buy.payout || r.payout), viaSignal: source === "autopred" && waitEnabled() };
+      entry = { row: row, stake: Number(buy.buy_price), digit: barrierDigit, displayed: displayed, symbol: inp.symbol, ticks: inp.ticks, payout: Number(buy.payout || r.payout), viaSignal: source === "autopred" && waitEnabled(), ct: inp.ct, dir: lastBuy.dir };
       lastBuy.contractId = buy.contract_id;
       lastBuy.stake = entry.stake;
       lastBuy.barrier = barrierDigit;
@@ -1938,17 +2270,31 @@
     var row = oc.entry.row;
     row.className = "li " + (won ? "win" : "loss");
     var exitD = null;
+    var exitSpot = c.exit_spot != null ? Number(c.exit_spot) : NaN;
+    var entrySpot = c.entry_spot != null ? Number(c.entry_spot) : NaN;
+    var actualMove = null;
+    if (isFinite(entrySpot) && isFinite(exitSpot)) {
+      actualMove = exitSpot > entrySpot ? "rose" : exitSpot < entrySpot ? "fell" : "tie";
+    }
     if (c.exit_spot != null) {
       var spot = String(c.exit_spot);
       exitD = Number(spot.charAt(spot.length - 1));
       if (!isFinite(exitD)) exitD = null;
     }
-    var midExtra = exitD != null ? " → exit " + exitD : " → exit ?";
+    var midExtra;
+    if (oc.entry.ct === "CALL" || oc.entry.ct === "PUT") {
+      midExtra = " · " + (oc.entry.dir ? oc.entry.dir.toUpperCase() : (oc.entry.ct === "PUT" ? "FALL" : "RISE")) + " → " + (actualMove || "?");
+    } else {
+      midExtra = exitD != null ? " → exit " + exitD : " → exit ?";
+    }
     row.children[1].appendChild(document.createTextNode(midExtra));
     var resTxt = (won ? "WIN " : "LOSS ") + (profit >= 0 ? "+" : "") + profit.toFixed(2) + " · Σ " + (session.pnl >= 0 ? "+" : "") + session.pnl.toFixed(2);
     row.querySelector(".res").textContent = resTxt;
-    lastBuy.exit = exitD;
+    lastBuy.exit = (oc.entry.ct === "CALL" || oc.entry.ct === "PUT") ? actualMove : exitD;
+    lastBuy.entrySpot = isFinite(entrySpot) ? entrySpot : null;
+    lastBuy.exitSpot = isFinite(exitSpot) ? exitSpot : null;
     lastBuy.profit = profit;
+    lastBuy.dir = oc.entry.dir || lastBuy.dir;
     lastBuy.barrier = oc.entry.digit;
     lastBuy.displayed = oc.entry.displayed != null ? oc.entry.displayed : oc.entry.digit;
     lastBuy.stake = oc.entry.stake;
@@ -1962,7 +2308,13 @@
     if (oc.subId && auth.ws && auth.ws.readyState === 1) { try { wsSend({ forget: oc.subId }); } catch (e) {} }
     delete openContracts[c.contract_id];
     busy = false; updateTradeButton(); updatePredAutoButtons();
-    showMsg(won ? "ok" : "info", (won ? "WIN " : "LOSS ") + (profit >= 0 ? "+" : "") + profit.toFixed(2) + " · pred " + (oc.entry.digit != null ? oc.entry.digit : "—") + " → exit " + (exitD != null ? exitD : "—") + " · Session P/L " + session.pnl.toFixed(2));
+    var predVs;
+    if (oc.entry.ct === "CALL" || oc.entry.ct === "PUT") {
+      predVs = "pred " + (oc.entry.dir ? oc.entry.dir.toUpperCase() : "—") + " → " + (actualMove || "?");
+    } else {
+      predVs = "pred " + (oc.entry.digit != null ? oc.entry.digit : "—") + " → exit " + (exitD != null ? exitD : "—");
+    }
+    showMsg(won ? "ok" : "info", (won ? "WIN " : "LOSS ") + (profit >= 0 ? "+" : "") + profit.toFixed(2) + " · " + predVs + " · Session P/L " + session.pnl.toFixed(2));
     var stopped = checkLimits();
     if (!stopped && predAuto.running && auth.wsOpen) {
       if (waitEnabled()) {
@@ -2023,7 +2375,7 @@
       if (!predAuto.running || predAuto.stopBuy) return;
       if (!auth.wsOpen) { stopAuto("இணைப்பு துண்டானது"); return; }
       if (busy) { schedulePredNext(400); return; }
-      t.countdown.textContent = "Entry now · Matches " + (displayedPrediction() != null ? displayedPrediction() : "—");
+      t.countdown.textContent = "Entry now · " + predEntryLabel();
       tradeOnce("autopred");
     }, delayMs == null ? 700 : delayMs);
   }
@@ -2081,16 +2433,31 @@
     if (!auth.wsOpen) { showMsg("err", TA_ERRORS.notConnected); return; }
     if (busy) { showMsg("err", "இப்போது ஒரு trade நடக்கிறது. முடிந்ததும் தொடங்கலாம்."); return; }
     if (t.auto.checked) { t.auto.checked = false; if (autoState.timer) { clearInterval(autoState.timer); autoState.timer = null; } }
-    if (ctype !== "DIGITMATCH") setCtype("DIGITMATCH");
-    t.follow.checked = true;
-    if (waitEnabled()) {
-      var methodEl = $("method");
-      if (methodEl && methodEl.value !== "hot") { methodEl.value = "hot"; methodEl.dispatchEvent(new Event("change")); }
+    var rfMode = isRfTradeMode();
+    if (!rfMode) {
+      if (ctype !== "DIGITMATCH") setCtype("DIGITMATCH");
+      t.follow.checked = true;
+      if (waitEnabled()) {
+        var methodEl = $("method");
+        if (methodEl && methodEl.value !== "hot") { methodEl.value = "hot"; methodEl.dispatchEvent(new Event("change")); }
+      }
+      syncDigit(true);
+    } else {
+      var hz = 1;
+      if (window.__predictor && window.__predictor.getState) {
+        var st0 = window.__predictor.getState();
+        if (st0 && st0.horizon >= 1) hz = st0.horizon;
+      }
+      t.ticks.value = String(hz);
+      var dir0 = displayedRfDirection();
+      if (dir0) setCtype(dir0 === "fall" ? "PUT" : "CALL");
     }
-    syncDigit(true);
     if (auth.isReal) {
       if (!t.realAck.checked) { showMsg("err", "REAL account: முதலில் 'Real பணம் என்று புரிந்துகொண்டேன்' tick பண்ணுங்க."); return; }
-      if (!window.confirm("REAL பணத்தில் Auto trade prediction — காட்டப்படும் இலக்கத்தில் தானாக Matches trade ஆகும். உறுதியா?")) return;
+      var realQ = rfMode
+        ? "REAL பணத்தில் Auto trade Rise/Fall — காட்டப்படும் திசையில் தானாக trade ஆகும். உறுதியா?"
+        : "REAL பணத்தில் Auto trade prediction — காட்டப்படும் இலக்கத்தில் தானாக Matches trade ஆகும். உறுதியா?";
+      if (!window.confirm(realQ)) return;
       predAuto.realConfirmed = true;
     }
     if (checkLimits()) return;
@@ -2099,16 +2466,19 @@
     predAuto.cooldownLeft = 0;
     updatePredAutoButtons();
     renderNextStake();
-    if (waitEnabled()) {
+    if (!rfMode && waitEnabled()) {
       predAuto.waiting = true;
       showMsg("ok", "Auto trade prediction தொடங்கியது. Hot digit % தேவை வரை காத்திருக்கும். நிறுத்து அழுத்தினால் காத்திருப்பும் நிற்கும்.");
       renderWaitStatus();
       checkWaitSignal();
     } else {
       predAuto.waiting = false;
-      t.countdown.textContent = "Auto prediction ON · Matches " + (displayedPrediction() != null ? displayedPrediction() : "—");
-      showMsg("ok", "Auto trade prediction தொடங்கியது. நிறுத்து அழுத்தினால் உடனே நிற்கும்.");
-      tradeOnce("autopred");
+      t.countdown.textContent = "Auto prediction ON · " + predEntryLabel();
+      showMsg("ok", rfMode
+        ? "Auto trade Rise/Fall தொடங்கியது. ஒவ்வொரு சுழற்சியிலும் திசை பார்த்து trade ஆகும். நிறுத்து அழுத்தினால் உடனே நிற்கும்."
+        : "Auto trade prediction தொடங்கியது. நிறுத்து அழுத்தினால் உடனே நிற்கும்.");
+      if (rfMode && displayedRfDirection() == null) schedulePredNext(800);
+      else tradeOnce("autopred");
     }
   }
 
@@ -2192,7 +2562,11 @@
 
   window.__predictorHooks = window.__predictorHooks || [];
   window.__predictorHooks.push(function (kind) {
-    syncDigit(false);
+    if (!isRfTradeMode()) syncDigit(false);
+    if (kind === "mode") {
+      if (predAuto.running) stopAuto("tab மாற்றம்");
+      return;
+    }
     if (kind === "tick") {
       maybeStartCountdown();
       onSignalTick();
