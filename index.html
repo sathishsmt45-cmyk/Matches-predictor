@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f4f1ea">
+  <meta name="description" content="Live last-digit display and Matches prediction tracker for volatility index ticks. Educational / demo only.">
+  <link rel="icon" href="data:,">
+  <title>Matches Digit Predictor</title>
+  <style>
+    :root {
+      --bg: #f4f1ea;
+      --bg-card: #fffcf6;
+      --ink: #1c1a16;
+      --muted: #5e584e;
+      --line: #ddd6c8;
+      --accent: #2b4f6e;
+      --accent-soft: #e6eef4;
+      --good: #215c3a;
+      --bad: #7a2e2e;
+      --warn: #6a4b12;
+      --shadow: 0 1px 2px rgba(28, 26, 22, 0.06), 0 8px 24px rgba(28, 26, 22, 0.06);
+      --radius: 16px;
+      --tap: 44px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Hind Madurai", Catamaran, "Noto Sans Tamil", "Noto Sans", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.45;
+      min-height: 100dvh;
+      padding: 16px 16px 32px;
+      padding-left: max(16px, env(safe-area-inset-left));
+      padding-right: max(16px, env(safe-area-inset-right));
+    }
+    .wrap { max-width: 40rem; margin: 0 auto; }
+    header { margin-bottom: 16px; }
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 650;
+      letter-spacing: -0.02em;
+      margin: 0 0 6px;
+    }
+    .sub { color: var(--muted); font-size: 0.92rem; margin: 0; }
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    .pill .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: currentColor;
+    }
+    .pill.live { background: #e5f3ea; color: var(--good); }
+    .pill.live .dot { box-shadow: 0 0 0 4px rgba(33, 92, 58, 0.15); }
+    .pill.wait { background: #f3edd9; color: var(--warn); }
+    .pill.err { background: #f8e8e8; color: var(--bad); }
+    .endpoint {
+      font-size: 0.72rem;
+      color: var(--muted);
+      word-break: break-all;
+    }
+    .error-banner {
+      display: none;
+      margin: 12px 0 0;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: #f8e8e8;
+      color: var(--bad);
+      font-size: 0.9rem;
+    }
+    .error-banner.show { display: block; }
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin: 16px 0;
+    }
+    @media (min-width: 540px) {
+      .controls { grid-template-columns: 1fr 1fr 1fr; }
+    }
+    label.field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    select, button {
+      font: inherit;
+      color: var(--ink);
+    }
+    select {
+      min-height: var(--tap);
+      border: 1px solid var(--line);
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 0 12px;
+      width: 100%;
+    }
+    .hero {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px 14px 16px;
+    }
+    .card h2 {
+      margin: 0;
+      font-size: 0.75rem;
+      font-weight: 650;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .price {
+      font-variant-numeric: tabular-nums;
+      font-size: 1.15rem;
+      font-weight: 650;
+      margin-top: 10px;
+      letter-spacing: -0.02em;
+      word-break: break-all;
+    }
+    .big-digit {
+      font-variant-numeric: tabular-nums;
+      font-size: 4.4rem;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: -0.04em;
+      margin: 8px 0 0;
+      text-align: center;
+    }
+    .pred-card { grid-column: span 1; }
+    .method-label {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.8rem;
+      margin-top: 4px;
+    }
+    .tracker { margin-bottom: 12px; }
+    .tracker-stats {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    .hits {
+      font-size: 1.35rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .rate { font-size: 1.05rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+    .be { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
+    .bar {
+      position: relative;
+      height: 10px;
+      border-radius: 999px;
+      background: #ece7dc;
+      margin-top: 12px;
+      overflow: hidden;
+    }
+    .bar .fill {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      border-radius: 999px;
+      transition: width 0.25s ease;
+    }
+    .bar .mark {
+      position: absolute;
+      top: -3px;
+      bottom: -3px;
+      width: 2px;
+      background: var(--ink);
+      opacity: 0.55;
+    }
+    .tracker-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .hint { color: var(--muted); font-size: 0.8rem; }
+    button.reset {
+      min-height: var(--tap);
+      padding: 0 16px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: var(--bg);
+      font-weight: 650;
+      cursor: pointer;
+    }
+    button.reset:active { transform: translateY(1px); }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .cell {
+      background: #f7f3ea;
+      border-radius: 12px;
+      padding: 8px 4px;
+      text-align: center;
+    }
+    .cell .d { font-weight: 700; font-size: 1.05rem; }
+    .cell .c { font-variant-numeric: tabular-nums; font-size: 0.78rem; color: var(--muted); }
+    .cell.hot { background: var(--accent-soft); }
+    .cell.cold { background: #f3eee3; box-shadow: inset 0 0 0 1px var(--line); }
+    .strip {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding: 12px 2px 4px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .chip {
+      flex: 0 0 auto;
+      width: 2rem;
+      height: 2rem;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: #efeae0;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .chip.latest { background: var(--accent); color: #fff; }
+    footer {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+    footer p { margin: 0 0 10px; }
+    footer .ta { font-size: 0.92rem; color: #3f3a33; font-family: "Hind Madurai", Catamaran, "Noto Sans Tamil", system-ui, sans-serif; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Matches Digit Predictor</h1>
+      <p class="sub">Live last digit and a simple next-tick guess. No claimed edge.</p>
+      <div class="status-row">
+        <span id="status" class="pill wait" role="status"><span class="dot"></span><span id="status-text">Connecting</span></span>
+        <span id="endpoint" class="endpoint"></span>
+      </div>
+      <div id="error" class="error-banner" role="alert"></div>
+    </header>
+
+    <div class="controls">
+      <label class="field">Market
+        <select id="market" aria-label="Market">
+          <option value="R_10" selected>R_10</option>
+          <option value="R_25">R_25</option>
+          <option value="R_50">R_50</option>
+          <option value="R_75">R_75</option>
+          <option value="R_100">R_100</option>
+          <option value="1HZ10V">1HZ10V</option>
+          <option value="1HZ100V">1HZ100V</option>
+        </select>
+      </label>
+      <label class="field">Frequency window
+        <select id="window" aria-label="Frequency window">
+          <option value="25">Last 25</option>
+          <option value="50">Last 50</option>
+          <option value="100" selected>Last 100</option>
+          <option value="500">Last 500</option>
+        </select>
+      </label>
+      <label class="field">Prediction method
+        <select id="method" aria-label="Prediction method">
+          <option value="last" selected>Last digit (repeat)</option>
+          <option value="cold">Least frequent (cold)</option>
+          <option value="hot">Most frequent (hot)</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="hero">
+      <section class="card">
+        <h2>Current price</h2>
+        <div id="price" class="price">—</div>
+        <h2 style="margin-top:14px">Last digit</h2>
+        <div id="last-digit" class="big-digit" aria-live="polite">—</div>
+      </section>
+      <section class="card pred-card">
+        <h2>Predicted Matches digit</h2>
+        <div id="prediction" class="big-digit" aria-live="polite">—</div>
+        <div id="method-label" class="method-label">Last digit (repeat)</div>
+      </section>
+    </div>
+
+    <section class="card tracker">
+      <h2>Live tracker</h2>
+      <div class="tracker-stats">
+        <div>
+          <div id="hits" class="hits">0 / 0</div>
+          <div class="be">Previous guess vs next tick</div>
+        </div>
+        <div style="text-align:right">
+          <div id="rate" class="rate">—</div>
+          <div class="be">Break-even 11.18% <span style="white-space:nowrap">(3.13 on 0.35)</span></div>
+        </div>
+      </div>
+      <div class="bar" aria-hidden="true">
+        <div id="fill" class="fill"></div>
+        <div class="mark" style="left:11.18%"></div>
+      </div>
+      <div class="tracker-actions">
+        <p class="hint" id="tracker-hint">Counts start with live ticks after history loads.</p>
+        <button type="button" class="reset" id="reset">Reset</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Digit frequency (window)</h2>
+      <div id="freq" class="grid"></div>
+    </section>
+
+    <section class="card" style="margin-top:12px">
+      <h2>Last 20 digits</h2>
+      <div id="strip" class="strip" aria-label="Last 20 digits"></div>
+    </section>
+
+    <footer>
+      <p class="ta">இந்த இலக்கங்கள் சீரற்றவை போலவே நடந்து கொள்கின்றன. Matches வெற்றி வாய்ப்பு சுமார் 10%. 0.35 பந்தயத்திற்கு பேஅவுட் 3.13 என்பதால், இலாபத்திற்கு தேவை 11.18% வெற்றி விகிதம். இது நிதி ஆலோசனை அல்ல. டெமோ / கல்வி பயன்பாடு மட்டும்.</p>
+      <p>Digits behave like random draws. A Matches win is expected about 10% of the time, which is below the 11.18% break-even rate (payout 3.13 on a 0.35 stake). This is not financial advice. Demo / educational use only.</p>
+    </footer>
+  </div>
+
+  <script>
+(function () {
+  "use strict";
+
+  var ENDPOINTS = [
+    "wss://api.derivws.com/trading/v1/options/ws/public",
+    "wss://ws.derivws.com/websockets/v3?app_id=1089",
+    "wss://ws.binaryws.com/websockets/v3?app_id=1089"
+  ];
+  var PIP_FALLBACK = {
+    R_10: 3, R_25: 3, R_50: 4, R_75: 4, R_100: 2,
+    "1HZ10V": 2, "1HZ100V": 2
+  };
+  var HISTORY_COUNT = 1000;
+  var BREAK_EVEN = 0.1118;
+  var METHOD_LABELS = {
+    last: "Last digit (repeat)",
+    cold: "Least frequent (cold)",
+    hot: "Most frequent (hot)"
+  };
+
+  function decimalsOf(pipSize) {
+    if (pipSize == null || !isFinite(Number(pipSize))) return 2;
+    var p = Number(pipSize);
+    if (p >= 1) return Math.round(p);
+    if (p > 0) return Math.max(0, Math.round(-Math.log10(p)));
+    return 2;
+  }
+
+  function paddedPrice(price, pipSize) {
+    return Number(price).toFixed(decimalsOf(pipSize));
+  }
+
+  function lastDigit(price, pipSize) {
+    var s = paddedPrice(price, pipSize);
+    return Number(s.charAt(s.length - 1));
+  }
+
+  function countsOf(digits) {
+    var c = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    for (var i = 0; i < digits.length; i++) c[digits[i]]++;
+    return c;
+  }
+
+  function predictDigit(method, digits) {
+    if (!digits.length) return null;
+    if (method === "last") return digits[digits.length - 1];
+    var c = countsOf(digits);
+    var d = 0;
+    var i;
+    if (method === "hot") {
+      for (i = 1; i < 10; i++) {
+        if (c[i] > c[d] || (c[i] === c[d] && i < d)) d = i;
+      }
+      return d;
+    }
+    // cold: lowest count, then lower digit
+    for (i = 1; i < 10; i++) {
+      if (c[i] < c[d] || (c[i] === c[d] && i < d)) d = i;
+    }
+    return d;
+  }
+
+  function windowDigits(all, size) {
+    if (all.length <= size) return all.slice();
+    return all.slice(all.length - size);
+  }
+
+  // --- UI ---
+  var el = {
+    status: document.getElementById("status"),
+    statusText: document.getElementById("status-text"),
+    endpoint: document.getElementById("endpoint"),
+    error: document.getElementById("error"),
+    market: document.getElementById("market"),
+    window: document.getElementById("window"),
+    method: document.getElementById("method"),
+    price: document.getElementById("price"),
+    lastDigit: document.getElementById("last-digit"),
+    prediction: document.getElementById("prediction"),
+    methodLabel: document.getElementById("method-label"),
+    hits: document.getElementById("hits"),
+    rate: document.getElementById("rate"),
+    fill: document.getElementById("fill"),
+    hint: document.getElementById("tracker-hint"),
+    reset: document.getElementById("reset"),
+    freq: document.getElementById("freq"),
+    strip: document.getElementById("strip")
+  };
+
+  function setStatus(kind, text) {
+    el.status.className = "pill " + kind;
+    el.statusText.textContent = text;
+  }
+
+  function showError(msg) {
+    if (!msg) {
+      el.error.className = "error-banner";
+      el.error.textContent = "";
+      return;
+    }
+    el.error.className = "error-banner show";
+    el.error.textContent = msg;
+  }
+
+  function renderFreq(digits, method) {
+    var c = countsOf(digits);
+    var n = digits.length || 1;
+    var hot = predictDigit("hot", digits);
+    var cold = predictDigit("cold", digits);
+    var html = "";
+    for (var d = 0; d < 10; d++) {
+      var cls = "cell";
+      if (digits.length && d === hot) cls += " hot";
+      if (digits.length && d === cold) cls += " cold";
+      var pct = digits.length ? (100 * c[d] / digits.length) : 0;
+      html += '<div class="' + cls + '"><div class="d">' + d + "</div>" +
+        '<div class="c">' + c[d] + " · " + pct.toFixed(1) + "%</div></div>";
+    }
+    el.freq.innerHTML = html;
+  }
+
+  function renderStrip(all) {
+    var slice = windowDigits(all, 20);
+    var html = "";
+    for (var i = 0; i < slice.length; i++) {
+      var cls = i === slice.length - 1 ? "chip latest" : "chip";
+      html += '<span class="' + cls + '">' + slice[i] + "</span>";
+    }
+    el.strip.innerHTML = html || '<span class="hint">Waiting for ticks…</span>';
+  }
+
+  function renderTracker() {
+    el.hits.textContent = state.hits + " / " + state.total;
+    if (state.total === 0) {
+      el.rate.textContent = "—";
+      el.fill.style.width = "0%";
+      return;
+    }
+    var rate = state.hits / state.total;
+    el.rate.textContent = (rate * 100).toFixed(2) + "% hit rate";
+    el.fill.style.width = Math.min(100, rate * 100) + "%";
+  }
+
+  function refreshViews() {
+    var size = Number(el.window.value);
+    var method = el.method.value;
+    var win = windowDigits(state.digits, size);
+    el.methodLabel.textContent = METHOD_LABELS[method];
+    if (state.lastPrice == null) {
+      el.price.textContent = "—";
+      el.lastDigit.textContent = "—";
+    } else {
+      el.price.textContent = paddedPrice(state.lastPrice, state.pipSize);
+      el.lastDigit.textContent = String(state.digits[state.digits.length - 1]);
+    }
+    state.pendingPred = predictDigit(method, win);
+    el.prediction.textContent = state.pendingPred == null ? "—" : String(state.pendingPred);
+    renderFreq(win, method);
+    renderStrip(state.digits);
+    renderTracker();
+  }
+
+  // --- app state ---
+  var state = {
+    digits: [],
+    lastPrice: null,
+    lastEpoch: 0,
+    pipSize: PIP_FALLBACK.R_10,
+    pendingPred: null,
+    readyToScore: false,
+    hits: 0,
+    total: 0,
+    ws: null,
+    reqId: 1,
+    pending: {},
+    subId: null,
+    symbol: "R_10",
+    endpointIndex: 0,
+    endpointUrl: "",
+    backoff: 1000,
+    closedOnPurpose: false,
+    pingTimer: null,
+    reconnectTimer: null
+  };
+
+  function resetTracker() {
+    state.hits = 0;
+    state.total = 0;
+    renderTracker();
+  }
+
+  el.reset.addEventListener("click", resetTracker);
+  el.window.addEventListener("change", function () {
+    refreshViews();
+  });
+  el.method.addEventListener("change", function () {
+    // Do not score the next tick against a prediction made under another method.
+    state.readyToScore = false;
+    refreshViews();
+    state.readyToScore = state.digits.length > 0;
+  });
+  el.market.addEventListener("change", function () {
+    state.symbol = el.market.value;
+    resetTracker();
+    state.digits = [];
+    state.lastPrice = null;
+    state.lastEpoch = 0;
+    state.pendingPred = null;
+    state.readyToScore = false;
+    state.pipSize = PIP_FALLBACK[state.symbol] || 2;
+    refreshViews();
+    if (state.ws && state.ws.readyState === 1) {
+      startFeed();
+    } else {
+      connect();
+    }
+  });
+
+  // --- websocket ---
+  function send(payload) {
+    var id = state.reqId++;
+    payload.req_id = id;
+    state.ws.send(JSON.stringify(payload));
+    return id;
+  }
+
+  function request(payload, timeoutMs) {
+    return new Promise(function (resolve, reject) {
+      var id = send(payload);
+      var t = setTimeout(function () {
+        delete state.pending[id];
+        reject(new Error("Request timed out"));
+      }, timeoutMs || 10000);
+      state.pending[id] = {
+        resolve: function (msg) { clearTimeout(t); resolve(msg); },
+        reject: function (err) { clearTimeout(t); reject(err); }
+      };
+    });
+  }
+
+  function forgetSub() {
+    if (state.subId && state.ws && state.ws.readyState === 1) {
+      try { send({ forget: state.subId }); } catch (e) {}
+    }
+    state.subId = null;
+  }
+
+  function onTickPayload(tick) {
+    if (!tick || tick.symbol && tick.symbol !== state.symbol) return;
+    var price = tick.quote != null ? tick.quote : tick.price;
+    var epoch = tick.epoch || 0;
+    if (price == null) return;
+    if (epoch && epoch <= state.lastEpoch) return;
+    if (tick.pip_size != null) state.pipSize = tick.pip_size;
+    var digit = lastDigit(price, state.pipSize);
+    if (state.readyToScore && state.pendingPred != null) {
+      state.total += 1;
+      if (digit === state.pendingPred) state.hits += 1;
+    }
+    state.lastPrice = price;
+    state.lastEpoch = epoch;
+    state.digits.push(digit);
+    if (state.digits.length > HISTORY_COUNT) {
+      state.digits = state.digits.slice(state.digits.length - HISTORY_COUNT);
+    }
+    state.readyToScore = true;
+    refreshViews();
+  }
+
+  function loadHistoryAndSubscribe() {
+    forgetSub();
+    setStatus("wait", "Loading ticks");
+    showError("");
+    var count = HISTORY_COUNT;
+    return request({
+      ticks_history: state.symbol,
+      count: count,
+      end: "latest",
+      style: "ticks"
+    }).then(function (msg) {
+      var hist = msg.history || {};
+      var prices = hist.prices || [];
+      var times = hist.times || [];
+      if (msg.pip_size != null) state.pipSize = msg.pip_size;
+      else state.pipSize = PIP_FALLBACK[state.symbol] || state.pipSize;
+      state.digits = [];
+      state.lastEpoch = 0;
+      for (var i = 0; i < prices.length; i++) {
+        state.digits.push(lastDigit(prices[i], state.pipSize));
+        state.lastPrice = prices[i];
+        if (times[i]) state.lastEpoch = times[i];
+      }
+      state.readyToScore = false;
+      refreshViews();
+      if (!prices.length) throw new Error("No history ticks returned for " + state.symbol);
+      return request({ ticks: state.symbol, subscribe: 1 });
+    }).then(function (msg) {
+      if (msg.subscription && msg.subscription.id) state.subId = msg.subscription.id;
+      if (msg.tick) onTickPayload(msg.tick);
+      state.readyToScore = state.digits.length > 0;
+      state.backoff = 1000;
+      setStatus("live", "Live");
+      showError("");
+      refreshViews();
+    });
+  }
+
+  function startFeed() {
+    loadHistoryAndSubscribe().catch(function (err) {
+      showError(err.message || String(err));
+      setStatus("err", "Error");
+    });
+  }
+
+  function clearTimers() {
+    if (state.pingTimer) { clearInterval(state.pingTimer); state.pingTimer = null; }
+    if (state.reconnectTimer) { clearTimeout(state.reconnectTimer); state.reconnectTimer = null; }
+  }
+
+  function scheduleReconnect(reason, rotate) {
+    clearTimers();
+    forgetSub();
+    var wait = state.backoff;
+    state.backoff = Math.min(15000, Math.round(state.backoff * 1.7));
+    setStatus("wait", "Reconnecting in " + Math.round(wait / 1000) + "s");
+    showError(reason || "Connection dropped. Reconnecting…");
+    state.reconnectTimer = setTimeout(function () {
+      if (rotate) state.endpointIndex = (state.endpointIndex + 1) % ENDPOINTS.length;
+      connect();
+    }, wait);
+  }
+
+  function connect() {
+    clearTimers();
+    state.closedOnPurpose = false;
+    if (state.ws) {
+      try { state.ws.onclose = null; state.ws.onerror = null; state.ws.close(); } catch (e) {}
+      state.ws = null;
+    }
+    var url = ENDPOINTS[state.endpointIndex];
+    state.endpointUrl = url;
+    el.endpoint.textContent = url.replace("wss://", "");
+    setStatus("wait", "Connecting");
+    var ws;
+    var opened = false;
+    try {
+      ws = new WebSocket(url);
+    } catch (e) {
+      scheduleReconnect("Could not open WebSocket: " + (e.message || e), true);
+      return;
+    }
+    state.ws = ws;
+    ws.onopen = function () {
+      opened = true;
+      state.pingTimer = setInterval(function () {
+        if (state.ws && state.ws.readyState === 1) {
+          try { send({ ping: 1 }); } catch (e) {}
+        }
+      }, 30000);
+      startFeed();
+    };
+    ws.onmessage = function (ev) {
+      var msg;
+      try { msg = JSON.parse(ev.data); } catch (e) { return; }
+      var pending = msg.req_id != null ? state.pending[msg.req_id] : null;
+      if (msg.error) {
+        var errText = (msg.error.code ? msg.error.code + ": " : "") + (msg.error.message || "API error");
+        if (pending) {
+          delete state.pending[msg.req_id];
+          pending.reject(new Error(errText));
+        } else {
+          showError(errText);
+        }
+        return;
+      }
+      if (pending) {
+        delete state.pending[msg.req_id];
+        pending.resolve(msg);
+        // A subscribe ack may also contain the first tick; still handle tick below
+        // only if not already applied? startFeed applies msg.tick. Skip if req was ticks subscribe.
+      }
+      if (msg.msg_type === "tick" && msg.tick) {
+        // If this tick already processed as subscribe ack with same epoch, onTickPayload dedupes.
+        if (!pending) onTickPayload(msg.tick);
+        else if (pending && msg.echo_req && msg.echo_req.subscribe) {
+          // already applied in startFeed
+        }
+      }
+    };
+    ws.onerror = function () {
+      // onclose will follow in most browsers
+    };
+    ws.onclose = function () {
+      if (state.closedOnPurpose) return;
+      var rotate = !opened;
+      var reason = opened
+        ? "WebSocket closed. Reconnecting…"
+        : "Could not connect to " + url.replace("wss://", "") + ". Trying the next endpoint…";
+      scheduleReconnect(reason, rotate);
+    };
+  }
+
+  // First paint
+  (function initFreqGrid() {
+    renderFreq([], "last");
+    renderStrip([]);
+    renderTracker();
+  })();
+
+  connect();
+
+  // Expose a tiny hook for optional headless checks (not required by the page).
+  window.__predictor = {
+    lastDigit: lastDigit,
+    paddedPrice: paddedPrice,
+    predictDigit: predictDigit,
+    getState: function () {
+      return {
+        symbol: state.symbol,
+        pipSize: state.pipSize,
+        digits: state.digits.length,
+        lastPrice: state.lastPrice,
+        lastDigit: state.digits.length ? state.digits[state.digits.length - 1] : null,
+        prediction: state.pendingPred,
+        hits: state.hits,
+        total: state.total,
+        endpoint: state.endpointUrl,
+        status: el.statusText.textContent
+      };
+    }
+  };
+})();
+  </script>
+</body>
+</html>
