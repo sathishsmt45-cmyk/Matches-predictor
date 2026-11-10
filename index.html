@@ -100,6 +100,24 @@
     .pred-card { border-color: rgba(168,85,247,0.55); background: linear-gradient(160deg, rgba(168,85,247,0.28), rgba(34,211,238,0.10) 70%), var(--bg-card); }
     .pred-card .big-digit { color: #f5d0fe; text-shadow: 0 0 28px rgba(168,85,247,0.7); }
     .method-label { text-align: center; color: #d8b4fe; font-size: 0.8rem; margin-top: 4px; font-weight: 600; }
+    .pred-hero { margin-bottom: 12px; text-align: center; padding: 18px 14px 16px; border-width: 2px; }
+    .pred-hero h2 { letter-spacing: 0.14em; }
+    .pred-hero .big-digit {
+      font-size: 7.2rem; margin: 2px 0 4px; color: #f5d0fe;
+      text-shadow: 0 0 36px rgba(168,85,247,0.85), 0 0 8px rgba(34,211,238,0.45);
+      transition: transform .18s ease, text-shadow .18s ease;
+    }
+    .pred-hero .big-digit.pulse { transform: scale(1.06); }
+    .pred-stats { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; margin-top: 12px; text-align: left; padding: 10px 12px; border-radius: 14px; background: rgba(11,15,26,0.45); border: 1px solid rgba(168,85,247,0.3); }
+    .pred-stats .rate { font-size: 1.2rem; }
+    .pred-note { margin: 10px 0 0; font-size: 0.82rem; color: #e9d5ff; line-height: 1.45; }
+    .fixed-wrap { margin-top: 10px; }
+    .fixed-pills { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; margin-top: 6px; }
+    .fixed-pills button { min-height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg2); color: var(--ink); font-weight: 900; font-size: 1rem; cursor: pointer; padding: 0; }
+    .fixed-pills button[aria-pressed=true] { background: linear-gradient(135deg, #a855f7, #22d3ee); color: #fff; border-color: transparent; box-shadow: 0 0 14px rgba(168,85,247,0.55); }
+    .pred-auto-box { margin-top: 14px; padding: 12px; border-radius: 16px; border: 1px solid rgba(168,85,247,0.5); background: linear-gradient(160deg, rgba(168,85,247,0.18), rgba(34,211,238,0.08) 70%), var(--bg2); }
+    .pred-auto-box h3 { margin: 0 0 6px; }
+    .next-stake { min-height: var(--tap); display: flex; align-items: center; font-weight: 900; font-variant-numeric: tabular-nums; font-size: 1.05rem; color: #f5d0fe; padding: 0 4px; }
     .tracker { margin-bottom: 12px; }
     .tracker-stats { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
     .hits { font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; }
@@ -216,8 +234,8 @@
   <div class="wrap">
     <header>
       <h1>Matches Digit Predictor</h1>
-      <p class="sub">Live last digit and a simple next-tick guess. No claimed edge.</p>
-      <p class="sub" lang="ta">நேரடி கடைசி இலக்கம், எளிய அடுத்த-tick கணிப்பு, உங்க Deriv account-ல நேரடி trade, DBot XML upload. எந்த "confidence %"-ம் இல்லை.</p>
+      <p class="sub">Live last digit and an honest Matches prediction. No claimed edge, no fake confidence.</p>
+      <p class="sub" lang="ta">நேரடி கடைசி இலக்கம், எளிய Matches கணிப்பு, அதே இலக்கத்தில் auto trade, DBot XML upload. எந்த "confidence %"-ம் இல்லை.</p>
       <div class="status-row">
         <span id="status" class="pill wait" role="status"><span class="dot"></span><span id="status-text">Connecting</span></span>
         <span id="endpoint" class="endpoint"></span>
@@ -228,13 +246,13 @@
     <div class="controls">
       <label class="field">Market
         <select id="market" aria-label="Market">
-          <option value="R_10" selected>R_10</option>
+          <option value="R_10">R_10</option>
           <option value="R_25">R_25</option>
           <option value="R_50">R_50</option>
           <option value="R_75">R_75</option>
           <option value="R_100">R_100</option>
           <option value="1HZ10V">1HZ10V</option>
-          <option value="1HZ100V">1HZ100V</option>
+          <option value="1HZ100V" selected>1HZ100V</option>
         </select>
       </label>
       <label class="field">Frequency window
@@ -248,23 +266,53 @@
       <label class="field">Prediction method
         <select id="method" aria-label="Prediction method">
           <option value="last" selected>Last digit (repeat)</option>
-          <option value="cold">Least frequent (cold)</option>
-          <option value="hot">Most frequent (hot)</option>
+          <option value="cold">Least frequent (cold, window)</option>
+          <option value="hot">Most frequent (hot, window)</option>
+          <option value="fixed">Fixed digit</option>
         </select>
       </label>
     </div>
+
+    <section class="card pred-card pred-hero" id="pred-hero">
+      <h2>Prediction digit</h2>
+      <div id="method-label" class="method-label">Last digit (repeat)</div>
+      <div id="prediction" class="big-digit" aria-live="polite">—</div>
+      <div id="fixed-wrap" class="fixed-wrap hidden">
+        <div class="small">நிலை இலக்கம் — இந்த இலக்கமே ஒவ்வொரு tick-க்கும் prediction</div>
+        <div class="fixed-pills" id="fixed-pills" role="group" aria-label="Fixed digit">
+          <button type="button" data-d="0">0</button>
+          <button type="button" data-d="1">1</button>
+          <button type="button" data-d="2">2</button>
+          <button type="button" data-d="3">3</button>
+          <button type="button" data-d="4">4</button>
+          <button type="button" data-d="5" aria-pressed="true">5</button>
+          <button type="button" data-d="6">6</button>
+          <button type="button" data-d="7">7</button>
+          <button type="button" data-d="8">8</button>
+          <button type="button" data-d="9">9</button>
+        </div>
+      </div>
+      <div class="pred-stats">
+        <div>
+          <div id="pred-rate" class="rate">—</div>
+          <div class="be" id="pred-sample">Hit rate · 0 / 0 ticks</div>
+        </div>
+        <div style="text-align:right">
+          <div id="pred-be" class="rate">BE 11.18%</div>
+          <div class="be" id="pred-be-detail">0.35 ÷ 3.13 payout</div>
+        </div>
+      </div>
+      <p class="pred-note" lang="ta" id="pred-note">இது இந்த முறை கடந்த ticks-ல் எத்தனை தடவை சரியா வந்தது என்பது மட்டுமே — "confidence" அல்ல. Matches-ல் சுமார் 10% தான் வாய்ப்பு; நஷ்டம் இல்லாமல் இருக்க payout-ஐ பொறுத்து சுமார் 11.18% வெற்றி வேணும்.</p>
+    </section>
 
     <div class="hero">
       <section class="card">
         <h2>Current price</h2>
         <div id="price" class="price">—</div>
-        <h2 style="margin-top:14px">Last digit</h2>
-        <div id="last-digit" class="big-digit" aria-live="polite">—</div>
       </section>
-      <section class="card pred-card">
-        <h2>Predicted Matches digit</h2>
-        <div id="prediction" class="big-digit" aria-live="polite">—</div>
-        <div id="method-label" class="method-label">Last digit (repeat)</div>
+      <section class="card">
+        <h2>Last digit</h2>
+        <div id="last-digit" class="big-digit" aria-live="polite">—</div>
       </section>
     </div>
 
@@ -344,13 +392,13 @@
         </div>
         <div class="row3">
           <label class="field">Stake ($)<input type="number" id="stake" value="0.35" min="0.35" step="0.01" inputmode="decimal"></label>
-          <label class="field">Ticks<input type="number" id="ticks" value="1" min="1" max="10" step="1" inputmode="numeric"></label>
+          <label class="field">Ticks<input type="number" id="ticks" value="2" min="1" max="10" step="1" inputmode="numeric"></label>
           <label class="field" id="digit-wrap">Digit<input type="number" id="digit" value="" min="0" max="9" step="1" inputmode="numeric"></label>
           <label class="field hidden" id="offset-wrap">Barrier offset<input type="text" id="offset" value="+0.1" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="+0.1 / -0.1"></label>
         </div>
         <p class="small" id="ticks-note" style="margin:6px 0 0"></p>
         <label class="check" id="follow-wrap"><input type="checkbox" id="follow" checked> Digit-ஐ site prediction-ல இருந்து தானா நிரப்பு (Matches / Differs)</label>
-        <p class="small">Market: மேலே உள்ள Market dropdown (<b id="trade-market">R_10</b>). Fixed stake மட்டும் — martingale இல்லை. எந்த contract type-க்கும் நிரூபிக்கப்பட்ட edge இல்லை.</p>
+        <p class="small">Market: மேலே உள்ள Market dropdown (<b id="trade-market">1HZ100V</b>). Default 2 ticks, stake 0.35. எந்த contract type-க்கும் நிரூபிக்கப்பட்ட edge இல்லை.</p>
         <div class="row2">
           <label class="field">Take Profit ($)<input type="number" id="tp" value="5" min="0.01" step="0.01" inputmode="decimal"></label>
           <label class="field">Stop Loss ($)<input type="number" id="sl" value="5" min="0.01" step="0.01" inputmode="decimal"></label>
@@ -360,6 +408,21 @@
         </div>
         <label class="check"><input type="checkbox" id="auto"> Auto mode — ஒவ்வொரு புது prediction-க்கும்
           <select id="auto-delay" style="width:auto;min-height:36px;padding:0 8px"><option value="3">3s</option><option value="5" selected>5s</option><option value="10">10s</option></select> கழித்து trade</label>
+
+        <div class="pred-auto-box" id="pred-auto-box">
+          <h3>Auto trade prediction</h3>
+          <p class="ta-note">காட்டப்படும் prediction இலக்கத்திலேயே Matches trade. ஒவ்வொரு முடிவுக்குப் பிறகு அடுத்த trade. <b>நிறுத்து</b> / TP / SL / இணைப்பு துண்டானால் உடனே நிற்கும். வாங்கும் போது தெரியும் இலக்கமே contract barrier ஆகும்.</p>
+          <div class="row3">
+            <label class="field">Martingale ×<input type="number" id="mg-mult" value="1" min="1" step="0.05" inputmode="decimal"></label>
+            <label class="field">Max stake ($)<input type="number" id="max-stake" value="10" min="0.35" step="0.01" inputmode="decimal"></label>
+            <label class="field">Next stake<div id="next-stake" class="next-stake">0.35</div></label>
+          </div>
+          <p class="small">× 1 = martingale இல்லை (default). தோல்வியில் stake பெருகும், வெற்றியில் base stake-க்கு திரும்பும், max stake-க்கு மேல் போகாது.</p>
+          <div class="btn-row">
+            <button type="button" class="btn go" id="btn-auto-pred">▶ தொடங்கு — Auto trade prediction</button>
+            <button type="button" class="btn danger hidden" id="btn-auto-stop">■ நிறுத்து</button>
+          </div>
+        </div>
         <div class="countdown" id="countdown" aria-live="polite"></div>
 
         <div class="pnl">
@@ -367,7 +430,7 @@
           <div style="text-align:right"><div class="small">Trades · Wins</div><div class="v" id="wl" style="font-size:1.05rem">0 · 0</div></div>
           <button type="button" class="btn" id="btn-pnl-reset" style="min-height:36px">Reset P/L</button>
         </div>
-        <h3>Trade log</h3>
+        <h3>Trade history (pred → exit · P/L · total)</h3>
         <div class="log" id="trade-log"><div class="empty">இன்னும் trade இல்லை.</div></div>
       </div>
     </section>
@@ -428,8 +491,9 @@
   var BREAK_EVEN = 0.1118;
   var METHOD_LABELS = {
     last: "Last digit (repeat)",
-    cold: "Least frequent (cold)",
-    hot: "Most frequent (hot)"
+    cold: "Least frequent (cold, window)",
+    hot: "Most frequent (hot, window)",
+    fixed: "Fixed digit"
   };
 
   function decimalsOf(pipSize) {
@@ -455,7 +519,11 @@
     return c;
   }
 
-  function predictDigit(method, digits) {
+  function predictDigit(method, digits, fixedDigit) {
+    if (method === "fixed") {
+      var f = fixedDigit != null ? fixedDigit : (state && state.fixedDigit);
+      return (f >= 0 && f <= 9) ? Number(f) : 0;
+    }
     if (!digits.length) return null;
     if (method === "last") return digits[digits.length - 1];
     var c = countsOf(digits);
@@ -492,6 +560,12 @@
     lastDigit: document.getElementById("last-digit"),
     prediction: document.getElementById("prediction"),
     methodLabel: document.getElementById("method-label"),
+    predRate: document.getElementById("pred-rate"),
+    predSample: document.getElementById("pred-sample"),
+    predBe: document.getElementById("pred-be"),
+    predBeDetail: document.getElementById("pred-be-detail"),
+    fixedWrap: document.getElementById("fixed-wrap"),
+    fixedPills: document.getElementById("fixed-pills"),
     hits: document.getElementById("hits"),
     rate: document.getElementById("rate"),
     fill: document.getElementById("fill"),
@@ -554,23 +628,74 @@
     el.strip.innerHTML = html || '<span class="hint">Waiting for ticks…</span>';
   }
 
+  function currentHorizon() {
+    var ticksEl = document.getElementById("ticks");
+    var n = ticksEl ? Number(ticksEl.value) : 2;
+    if (!(n >= 1 && n <= 10 && Math.floor(n) === n)) n = 2;
+    return n;
+  }
+
+  function payoutInfo() {
+    var info = window.__payoutInfo || { stake: 0.35, payout: 3.13, be: 0.1118 };
+    return info;
+  }
+
+  function renderBreakEven() {
+    var info = payoutInfo();
+    var pct = (info.be * 100).toFixed(2) + "%";
+    if (el.predBe) el.predBe.textContent = "BE " + pct;
+    if (el.predBeDetail) el.predBeDetail.textContent = Number(info.stake).toFixed(2) + " ÷ " + Number(info.payout).toFixed(2) + " payout";
+    var mark = document.querySelector(".bar .mark");
+    if (mark) mark.style.left = Math.min(100, info.be * 100) + "%";
+    var beLine = document.querySelector(".tracker-stats .be");
+    // keep the right-side BE label in the live tracker in sync
+    var rights = document.querySelectorAll(".tracker-stats .be");
+    if (rights && rights.length >= 2) {
+      rights[1].innerHTML = "Break-even " + pct + ' <span style="white-space:nowrap">(' + Number(info.payout).toFixed(2) + " on " + Number(info.stake).toFixed(2) + ")</span>";
+    }
+  }
+
+  function renderPredStats() {
+    var n = state.rollTotal, h = state.rollHits;
+    if (!el.predRate) return;
+    if (n === 0) {
+      el.predRate.textContent = "—";
+      el.predSample.textContent = "Hit rate · 0 / 0 (" + currentHorizon() + "-tick Matches)";
+    } else {
+      el.predRate.textContent = ((h / n) * 100).toFixed(2) + "%";
+      el.predSample.textContent = "Hit rate · " + h + " / " + n + " (" + currentHorizon() + "-tick Matches)";
+    }
+    renderBreakEven();
+  }
+
+  function pulsePred(prev, next) {
+    if (!el.prediction) return;
+    if (prev === next) return;
+    el.prediction.classList.remove("pulse");
+    void el.prediction.offsetWidth;
+    el.prediction.classList.add("pulse");
+    setTimeout(function () { el.prediction.classList.remove("pulse"); }, 220);
+  }
+
   function renderTracker() {
     el.hits.textContent = state.hits + " / " + state.total;
     if (state.total === 0) {
       el.rate.textContent = "—";
       el.fill.style.width = "0%";
-      return;
+    } else {
+      var rate = state.hits / state.total;
+      el.rate.textContent = (rate * 100).toFixed(2) + "% hit rate";
+      el.fill.style.width = Math.min(100, rate * 100) + "%";
     }
-    var rate = state.hits / state.total;
-    el.rate.textContent = (rate * 100).toFixed(2) + "% hit rate";
-    el.fill.style.width = Math.min(100, rate * 100) + "%";
+    renderPredStats();
   }
 
   function refreshViews() {
     var size = Number(el.window.value);
     var method = el.method.value;
     var win = windowDigits(state.digits, size);
-    el.methodLabel.textContent = METHOD_LABELS[method];
+    el.methodLabel.textContent = METHOD_LABELS[method] || method;
+    if (el.fixedWrap) el.fixedWrap.className = method === "fixed" ? "fixed-wrap" : "fixed-wrap hidden";
     if (state.lastPrice == null) {
       el.price.textContent = "—";
       el.lastDigit.textContent = "—";
@@ -578,8 +703,11 @@
       el.price.textContent = paddedPrice(state.lastPrice, state.pipSize);
       el.lastDigit.textContent = String(state.digits[state.digits.length - 1]);
     }
-    state.pendingPred = predictDigit(method, win);
-    el.prediction.textContent = state.pendingPred == null ? "—" : String(state.pendingPred);
+    var prev = state.pendingPred;
+    state.pendingPred = predictDigit(method, win, state.fixedDigit);
+    var shown = state.pendingPred == null ? "—" : String(state.pendingPred);
+    if (el.prediction.textContent !== shown) pulsePred(el.prediction.textContent, shown);
+    el.prediction.textContent = shown;
     renderFreq(win, method);
     renderStrip(state.digits);
     renderTracker();
@@ -598,16 +726,21 @@
     digits: [],
     lastPrice: null,
     lastEpoch: 0,
-    pipSize: PIP_FALLBACK.R_10,
+    pipSize: PIP_FALLBACK["1HZ100V"],
     pendingPred: null,
     readyToScore: false,
     hits: 0,
     total: 0,
+    fixedDigit: 5,
+    rollHits: 0,
+    rollTotal: 0,
+    rollWindow: [],
+    predQueue: [],
     ws: null,
     reqId: 1,
     pending: {},
     subId: null,
-    symbol: "R_10",
+    symbol: "1HZ100V",
     endpointIndex: 0,
     endpointUrl: "",
     backoff: 1000,
@@ -616,22 +749,83 @@
     reconnectTimer: null
   };
 
+  function resetRoll() {
+    state.rollHits = 0;
+    state.rollTotal = 0;
+    state.rollWindow = [];
+    state.predQueue = [];
+    renderPredStats();
+  }
+
   function resetTracker() {
     state.hits = 0;
     state.total = 0;
+    resetRoll();
     renderTracker();
+  }
+
+  function enqueuePrediction() {
+    if (state.pendingPred == null || !state.digits.length) return;
+    state.predQueue.push({ left: currentHorizon(), pred: state.pendingPred });
+    if (state.predQueue.length > 50) state.predQueue = state.predQueue.slice(-30);
+  }
+
+  function resolvePredQueue() {
+    if (!state.digits.length) return;
+    var digit = state.digits[state.digits.length - 1];
+    var kept = [];
+    for (var i = 0; i < state.predQueue.length; i++) {
+      var q = state.predQueue[i];
+      q.left -= 1;
+      if (q.left > 0) { kept.push(q); continue; }
+      if (q.left === 0) {
+        state.rollWindow.push(digit === q.pred);
+        if (state.rollWindow.length > 200) state.rollWindow.shift();
+        state.rollHits = 0;
+        for (var j = 0; j < state.rollWindow.length; j++) if (state.rollWindow[j]) state.rollHits += 1;
+        state.rollTotal = state.rollWindow.length;
+      }
+    }
+    state.predQueue = kept;
+  }
+
+  function setFixedDigit(d) {
+    d = Number(d);
+    if (!(d >= 0 && d <= 9 && Math.floor(d) === d)) return;
+    state.fixedDigit = d;
+    if (el.fixedPills) {
+      var btns = el.fixedPills.querySelectorAll("button[data-d]");
+      for (var i = 0; i < btns.length; i++) btns[i].setAttribute("aria-pressed", btns[i].getAttribute("data-d") === String(d) ? "true" : "false");
+    }
+    state.readyToScore = false;
+    resetRoll();
+    refreshViews();
+    state.readyToScore = state.digits.length > 0;
   }
 
   el.reset.addEventListener("click", resetTracker);
   el.window.addEventListener("change", function () {
+    resetRoll();
     refreshViews();
   });
   el.method.addEventListener("change", function () {
     // Do not score the next tick against a prediction made under another method.
     state.readyToScore = false;
+    resetRoll();
     refreshViews();
     state.readyToScore = state.digits.length > 0;
   });
+  if (el.fixedPills) {
+    el.fixedPills.addEventListener("click", function (e) {
+      var b = e.target.closest ? e.target.closest("button[data-d]") : null;
+      if (b) setFixedDigit(b.getAttribute("data-d"));
+    });
+  }
+  var ticksEl = document.getElementById("ticks");
+  if (ticksEl) {
+    ticksEl.addEventListener("change", function () { resetRoll(); renderPredStats(); });
+    ticksEl.addEventListener("input", function () { renderPredStats(); });
+  }
   el.market.addEventListener("change", function () {
     state.symbol = el.market.value;
     resetTracker();
@@ -696,8 +890,11 @@
     if (state.digits.length > HISTORY_COUNT) {
       state.digits = state.digits.slice(state.digits.length - HISTORY_COUNT);
     }
+    if (state.readyToScore) resolvePredQueue();
+    var wasReady = state.readyToScore;
     state.readyToScore = true;
     refreshViews();
+    if (wasReady) enqueuePrediction();
     notifyHooks("tick");
   }
 
@@ -858,10 +1055,24 @@
         prediction: state.pendingPred,
         hits: state.hits,
         total: state.total,
+        method: el.method.value,
+        fixedDigit: state.fixedDigit,
+        rollHits: state.rollHits,
+        rollTotal: state.rollTotal,
+        horizon: currentHorizon(),
         endpoint: state.endpointUrl,
         status: el.statusText.textContent
       };
-    }
+    },
+    setFixedDigit: setFixedDigit,
+    renderBreakEven: renderBreakEven
+  };
+  window.__payoutInfo = window.__payoutInfo || { stake: 0.35, payout: 3.13, be: 0.1118 };
+  window.__setPayoutInfo = function (stake, payout) {
+    stake = Number(stake); payout = Number(payout);
+    if (!(stake > 0) || !(payout > 0)) return;
+    window.__payoutInfo = { stake: stake, payout: payout, be: stake / payout };
+    renderBreakEven();
   };
 })();
   </script>
@@ -903,7 +1114,9 @@
     tp: $("tp"), sl: $("sl"), btnTrade: $("btn-trade"), auto: $("auto"), autoDelay: $("auto-delay"),
     countdown: $("countdown"), pnl: $("pnl"), wl: $("wl"), btnPnlReset: $("btn-pnl-reset"), log: $("trade-log"),
     market: $("market"), ctPills: $("ctype-pills"), digitWrap: $("digit-wrap"), offset: $("offset"), offsetWrap: $("offset-wrap"), ticksNote: $("ticks-note"),
-    tokenWarn: $("token-warn"), followWrap: $("follow-wrap")
+    tokenWarn: $("token-warn"), followWrap: $("follow-wrap"),
+    mgMult: $("mg-mult"), maxStake: $("max-stake"), nextStake: $("next-stake"),
+    btnAutoPred: $("btn-auto-pred"), btnAutoStop: $("btn-auto-stop")
   };
 
   // Token lives only in this closure (and localStorage if the user opts in).
@@ -916,6 +1129,9 @@
   var busy = false;
   var openContracts = {};   // contract_id -> {entry, subId, timer, settled}
   var autoState = { timer: null, remaining: 0, realConfirmed: false };
+  var predAuto = { running: false, timer: null, realConfirmed: false, stopBuy: false };
+  var mgState = { next: null }; // null = use base stake from the form
+  var lastBuy = { displayed: null, barrier: null, exit: null, profit: null, stake: null, contractId: null };
   var userEditedDigit = false;
 
   // ---------- messages ----------
@@ -1057,6 +1273,7 @@
           if (auth.pingTimer) { clearInterval(auth.pingTimer); auth.pingTimer = null; }
           rejectAllPending("notConnected");
           if (auth.closedOnPurpose) return;
+          stopAuto("இணைப்பு துண்டானது");
           if (!opened) { reject(mkErr("network", "WebSocket did not open")); }
           scheduleReconnect();
         };
@@ -1248,6 +1465,60 @@
   // ---------- trading ----------
   function num(input) { var v = Number(String(input.value).replace(",", ".")); return isFinite(v) ? v : NaN; }
 
+  function baseStake() {
+    var v = Math.round(num(t.stake) * 100) / 100;
+    return v;
+  }
+  function mgMultiplier() {
+    var m = t.mgMult ? num(t.mgMult) : 1;
+    if (!(m >= 1) || !isFinite(m)) m = 1;
+    return m;
+  }
+  function stakeCap() {
+    var cap = t.maxStake ? num(t.maxStake) : 10;
+    if (!(cap >= MIN_STAKE)) cap = MIN_STAKE;
+    return Math.round(cap * 100) / 100;
+  }
+  function currentStake() {
+    var base = baseStake();
+    var s = mgState.next != null ? mgState.next : base;
+    if (!(s >= MIN_STAKE)) s = MIN_STAKE;
+    var cap = stakeCap();
+    if (s > cap) s = cap;
+    return Math.round(s * 100) / 100;
+  }
+  function resetMartingale() { mgState.next = null; renderNextStake(); }
+  function applyMartingale(won, usedStake) {
+    var mult = mgMultiplier();
+    if (won || !(mult > 1)) { mgState.next = null; renderNextStake(); return; }
+    var next = Math.round(usedStake * mult * 100) / 100;
+    var cap = stakeCap();
+    if (next > cap) next = cap;
+    if (next < MIN_STAKE) next = MIN_STAKE;
+    mgState.next = next;
+    renderNextStake();
+  }
+  function renderNextStake() {
+    if (!t.nextStake) return;
+    var s = currentStake();
+    t.nextStake.textContent = s.toFixed(2);
+  }
+
+  function displayedPrediction() {
+    var el = document.getElementById("prediction");
+    if (el && /^[0-9]$/.test(String(el.textContent).trim())) return Number(el.textContent.trim());
+    var st = window.__predictor && window.__predictor.getState && window.__predictor.getState();
+    if (st && st.prediction != null && st.prediction >= 0 && st.prediction <= 9) return Number(st.prediction);
+    return null;
+  }
+
+  function updatePredAutoButtons() {
+    if (!t.btnAutoPred || !t.btnAutoStop) return;
+    t.btnAutoPred.classList.toggle("hidden", !!predAuto.running);
+    t.btnAutoStop.classList.toggle("hidden", !predAuto.running);
+    t.btnAutoPred.disabled = busy && !predAuto.running;
+  }
+
   function logEntry(kind, left, mid, right, ct) {
     var empty = t.log.querySelector(".empty");
     if (empty) empty.remove();
@@ -1274,6 +1545,7 @@
   function updateTradeButton() {
     t.btnTrade.disabled = busy || !auth.wsOpen;
     t.btnTrade.textContent = busy ? "Trade நடக்கிறது…" : "Trade now";
+    updatePredAutoButtons();
   }
 
   function readInputs() {
@@ -1301,8 +1573,37 @@
   function tradeOnce(source) {
     if (busy) return Promise.resolve("busy");
     if (!auth.ws || !auth.wsOpen) { showMsg("err", TA_ERRORS.notConnected); return Promise.resolve("noconn"); }
+    if (source === "autopred" && !predAuto.running) return Promise.resolve("stopped");
+    var displayed = displayedPrediction();
+    if (source === "autopred") {
+      if (displayed == null) {
+        showMsg("info", "Prediction இலக்கம் வரவில்லை — அடுத்த tick-க்காக காத்திருக்கிறது…");
+        schedulePredNext(800);
+        return Promise.resolve("wait");
+      }
+      if (ctype !== "DIGITMATCH") setCtype("DIGITMATCH");
+      t.follow.checked = true;
+      t.digit.value = String(displayed);
+    }
     var inp = readInputs();
-    if (inp.error) { showMsg("err", inp.error); if (source === "auto") stopAuto("உள்ளீடு பிழை"); return Promise.resolve("input"); }
+    if (inp.error) { showMsg("err", inp.error); if (source === "auto" || source === "autopred") stopAuto("உள்ளீடு பிழை"); return Promise.resolve("input"); }
+    // Lock the digit shown at buy time into the contract barrier.
+    if (inp.ct === "DIGITMATCH" || inp.ct === "DIGITDIFF") {
+      if (source === "autopred" || t.follow.checked) {
+        if (displayed != null) {
+          t.digit.value = String(displayed);
+          inp.digit = displayed;
+          inp.desc = CTYPES[inp.ct].label + " " + displayed;
+        }
+      }
+    }
+    var stake = (source === "autopred" || source === "auto") ? currentStake() : inp.stake;
+    // Manual Trade now uses the form stake (and resets any leftover mg ladder if user is not in auto).
+    if (source === "manual") { stake = inp.stake; }
+    if (!(stake >= MIN_STAKE)) { showMsg("err", "Stake குறைந்தது " + MIN_STAKE.toFixed(2) + " இருக்க வேண்டும்."); return Promise.resolve("input"); }
+    var cap = stakeCap();
+    if (stake > cap) stake = cap;
+    inp.stake = stake;
     if (session.pnl >= inp.tp - 1e-9) {
       stopAuto("Take Profit");
       showMsg("ok", "Take Profit (" + inp.tp.toFixed(2) + ") அடைந்தது. P/L-ஐ Reset செய்து மீண்டும் தொடங்கலாம்.");
@@ -1314,15 +1615,18 @@
       showMsg("err", "Trade தவிர்க்கப்பட்டது: இந்த trade தோற்றால் Stop Loss (" + inp.sl.toFixed(2) + ") தாண்டும்.");
       return Promise.resolve("sl");
     }
+    var realAuto = (source === "auto" && autoState.realConfirmed) || (source === "autopred" && predAuto.realConfirmed);
     if (auth.isReal) {
-      if (!t.realAck.checked) { showMsg("err", "REAL account: முதலில் 'Real பணம் என்று புரிந்துகொண்டேன்' tick பண்ணுங்க."); if (source === "auto") stopAuto("REAL உறுதிப்படுத்தல்"); return Promise.resolve("real"); }
-      if (!(source === "auto" && autoState.realConfirmed)) {
+      if (!t.realAck.checked) { showMsg("err", "REAL account: முதலில் 'Real பணம் என்று புரிந்துகொண்டேன்' tick பண்ணுங்க."); if (source === "auto" || source === "autopred") stopAuto("REAL உறுதிப்படுத்தல்"); return Promise.resolve("real"); }
+      if (!realAuto) {
         if (!window.confirm("REAL பணம்: " + inp.stake.toFixed(2) + " " + (auth.account.currency || "") + " — " + inp.symbol + " " + inp.desc + ". உறுதியா?")) return Promise.resolve("cancel");
       }
     }
-    busy = true; updateTradeButton();
+    busy = true; updateTradeButton(); updatePredAutoButtons();
     var currency = (auth.account && auth.account.currency) || "USD";
     var entry = null;
+    var barrierDigit = inp.digit;
+    lastBuy = { displayed: displayed, barrier: barrierDigit, exit: null, profit: null, stake: inp.stake, contractId: null };
     showMsg("info", "Proposal கேட்கிறது… (" + inp.desc + ", " + inp.symbol + ")");
     var preq = {
       proposal: 1, amount: inp.stake, basis: "stake", contract_type: inp.ct, currency: currency,
@@ -1337,14 +1641,29 @@
       if (!(isFinite(ask) && isFinite(payout))) throw mkErr("BadResponse", "Proposal had no price");
       if (ask > inp.stake + 0.005) throw mkErr("PriceCheck", "Ask " + ask.toFixed(2) + " > stake " + inp.stake.toFixed(2));
       if (!(payout > ask)) throw mkErr("PriceCheck", "Payout " + payout.toFixed(2) + " ≤ ask " + ask.toFixed(2));
+      if (inp.ct === "DIGITMATCH" && payout > 0) {
+        if (window.__setPayoutInfo) window.__setPayoutInfo(ask, payout);
+      }
+      if ((source === "autopred" && (!predAuto.running || predAuto.stopBuy)) || (source === "auto" && !t.auto.checked)) {
+        throw mkErr("Stopped", "Stopped before buy");
+      }
       return wsRequest({ buy: pr.id, price: ask }).then(function (b) { return { b: b, ask: ask, payout: payout }; });
     }).then(function (r) {
       var buy = r.b.buy || {};
       if (!buy.contract_id) throw mkErr("BadResponse", "Buy had no contract id");
       if (Number(buy.buy_price) > inp.stake + 0.005) showMsg("err", "எச்சரிக்கை: buy price " + fmtMoney(buy.buy_price) + " stake-ஐ விட அதிகம்.");
       if (buy.balance_after != null) t.accBal.textContent = fmtMoney(buy.balance_after) + " " + currency;
-      var row = logEntry("open", timeNow(), "#" + buy.contract_id + " · " + inp.desc + " · " + inp.symbol + " · " + inp.ticks + "t · " + fmtMoney(buy.buy_price), "…", inp.ct);
-      entry = { row: row, stake: Number(buy.buy_price), digit: inp.digit, symbol: inp.symbol, ticks: inp.ticks, payout: Number(buy.payout || r.payout) };
+      var mid = "#" + buy.contract_id + " · " + inp.desc + " · " + inp.symbol + " · " + inp.ticks + "t · " + fmtMoney(buy.buy_price);
+      if (barrierDigit != null) {
+        mid += " · pred " + barrierDigit;
+        if (displayed != null && Number(displayed) !== Number(barrierDigit)) mid += " (shown " + displayed + ")";
+      }
+      var row = logEntry("open", timeNow(), mid, "…", inp.ct);
+      entry = { row: row, stake: Number(buy.buy_price), digit: barrierDigit, displayed: displayed, symbol: inp.symbol, ticks: inp.ticks, payout: Number(buy.payout || r.payout) };
+      lastBuy.contractId = buy.contract_id;
+      lastBuy.stake = entry.stake;
+      lastBuy.barrier = barrierDigit;
+      lastBuy.displayed = displayed;
       var oc = { entry: entry, subId: null, settled: false, timer: null };
       openContracts[buy.contract_id] = oc;
       oc.timer = setTimeout(function () {
@@ -1360,11 +1679,15 @@
         return "bought";
       }, function (e) { showMsg("err", taError(e)); return "bought"; });
     }).catch(function (e) {
-      busy = false; updateTradeButton();
+      busy = false; updateTradeButton(); updatePredAutoButtons();
+      if (e.code === "Stopped") {
+        showMsg("info", "Buy நிறுத்தப்பட்டது.");
+        return "stopped";
+      }
       if (e.code === "PriceCheck") showMsg("err", "Price check தோல்வி — trade வாங்கவில்லை. (" + e.message + ")");
       else showMsg("err", "Trade தோல்வி: " + taError(e));
       logEntry("skip", timeNow(), "Not bought · " + inp.desc + " · " + inp.symbol, e.code || "error", inp.ct);
-      if (source === "auto" && e.code !== "PriceMoved" && e.code !== "InvalidContractProposal") stopAuto("API பிழை");
+      if ((source === "auto" || source === "autopred") && e.code !== "PriceMoved" && e.code !== "InvalidContractProposal") stopAuto("API பிழை");
       return "error";
     });
   }
@@ -1400,15 +1723,29 @@
     renderPnl();
     var row = oc.entry.row;
     row.className = "li " + (won ? "win" : "loss");
-    var exitDigit = "";
-    if (c.exit_spot != null) { var s = String(c.exit_spot); exitDigit = " · exit " + s.charAt(s.length - 1); }
-    row.children[1].appendChild(document.createTextNode(exitDigit));
-    row.querySelector(".res").textContent = (won ? "WIN " : "LOSS ") + (profit >= 0 ? "+" : "") + profit.toFixed(2);
+    var exitD = null;
+    if (c.exit_spot != null) {
+      var spot = String(c.exit_spot);
+      exitD = Number(spot.charAt(spot.length - 1));
+      if (!isFinite(exitD)) exitD = null;
+    }
+    var midExtra = exitD != null ? " → exit " + exitD : " → exit ?";
+    row.children[1].appendChild(document.createTextNode(midExtra));
+    var resTxt = (won ? "WIN " : "LOSS ") + (profit >= 0 ? "+" : "") + profit.toFixed(2) + " · Σ " + (session.pnl >= 0 ? "+" : "") + session.pnl.toFixed(2);
+    row.querySelector(".res").textContent = resTxt;
+    lastBuy.exit = exitD;
+    lastBuy.profit = profit;
+    lastBuy.barrier = oc.entry.digit;
+    lastBuy.displayed = oc.entry.displayed != null ? oc.entry.displayed : oc.entry.digit;
+    lastBuy.stake = oc.entry.stake;
+    lastBuy.contractId = c.contract_id;
+    applyMartingale(won, oc.entry.stake);
     if (oc.subId && auth.ws && auth.ws.readyState === 1) { try { wsSend({ forget: oc.subId }); } catch (e) {} }
     delete openContracts[c.contract_id];
-    busy = false; updateTradeButton();
-    showMsg(won ? "ok" : "info", (won ? "WIN " : "LOSS ") + (profit >= 0 ? "+" : "") + profit.toFixed(2) + " · Session P/L " + session.pnl.toFixed(2));
-    checkLimits();
+    busy = false; updateTradeButton(); updatePredAutoButtons();
+    showMsg(won ? "ok" : "info", (won ? "WIN " : "LOSS ") + (profit >= 0 ? "+" : "") + profit.toFixed(2) + " · pred " + (oc.entry.digit != null ? oc.entry.digit : "—") + " → exit " + (exitD != null ? exitD : "—") + " · Session P/L " + session.pnl.toFixed(2));
+    var stopped = checkLimits();
+    if (!stopped && predAuto.running && auth.wsOpen) schedulePredNext(700);
   }
 
   function checkLimits() {
@@ -1419,15 +1756,64 @@
   }
 
   // ---------- auto mode ----------
+  function stopPredAuto(reason) {
+    var was = predAuto.running;
+    predAuto.running = false;
+    predAuto.stopBuy = true;
+    predAuto.realConfirmed = false;
+    if (predAuto.timer) { clearTimeout(predAuto.timer); predAuto.timer = null; }
+    updatePredAutoButtons();
+    if (was && reason) t.countdown.textContent = "Auto prediction நிறுத்தப்பட்டது: " + reason;
+  }
+
   function stopAuto(reason) {
     if (autoState.timer) { clearInterval(autoState.timer); autoState.timer = null; }
     autoState.realConfirmed = false;
     if (t.auto.checked) { t.auto.checked = false; t.countdown.textContent = reason ? "Auto நிறுத்தப்பட்டது: " + reason : ""; }
-    else if (!reason) t.countdown.textContent = "";
+    else if (!reason && !predAuto.running) t.countdown.textContent = "";
+    stopPredAuto(reason);
+  }
+
+  function schedulePredNext(delayMs) {
+    if (!predAuto.running || predAuto.stopBuy) return;
+    if (predAuto.timer) { clearTimeout(predAuto.timer); predAuto.timer = null; }
+    if (!auth.wsOpen) { stopAuto("இணைப்பு துண்டானது"); return; }
+    t.countdown.textContent = "அடுத்த prediction trade…";
+    predAuto.timer = setTimeout(function () {
+      predAuto.timer = null;
+      if (!predAuto.running || predAuto.stopBuy) return;
+      if (!auth.wsOpen) { stopAuto("இணைப்பு துண்டானது"); return; }
+      if (busy) { schedulePredNext(400); return; }
+      t.countdown.textContent = "Entry now · Matches " + (displayedPrediction() != null ? displayedPrediction() : "—");
+      tradeOnce("autopred");
+    }, delayMs == null ? 700 : delayMs);
+  }
+
+  function startPredAuto() {
+    if (predAuto.running) return;
+    if (!auth.wsOpen) { showMsg("err", TA_ERRORS.notConnected); return; }
+    if (busy) { showMsg("err", "இப்போது ஒரு trade நடக்கிறது. முடிந்ததும் தொடங்கலாம்."); return; }
+    if (t.auto.checked) { t.auto.checked = false; if (autoState.timer) { clearInterval(autoState.timer); autoState.timer = null; } }
+    if (ctype !== "DIGITMATCH") setCtype("DIGITMATCH");
+    t.follow.checked = true;
+    syncDigit(true);
+    if (auth.isReal) {
+      if (!t.realAck.checked) { showMsg("err", "REAL account: முதலில் 'Real பணம் என்று புரிந்துகொண்டேன்' tick பண்ணுங்க."); return; }
+      if (!window.confirm("REAL பணத்தில் Auto trade prediction — காட்டப்படும் இலக்கத்தில் தானாக Matches trade ஆகும். உறுதியா?")) return;
+      predAuto.realConfirmed = true;
+    }
+    if (checkLimits()) return;
+    predAuto.running = true;
+    predAuto.stopBuy = false;
+    updatePredAutoButtons();
+    renderNextStake();
+    t.countdown.textContent = "Auto prediction ON · Matches " + (displayedPrediction() != null ? displayedPrediction() : "—");
+    showMsg("ok", "Auto trade prediction தொடங்கியது. நிறுத்து அழுத்தினால் உடனே நிற்கும்.");
+    tradeOnce("autopred");
   }
 
   function maybeStartCountdown() {
-    if (!t.auto.checked || busy || autoState.timer || !auth.wsOpen) return;
+    if (!t.auto.checked || busy || autoState.timer || !auth.wsOpen || predAuto.running) return;
     autoState.remaining = Number(t.autoDelay.value) || 5;
     t.countdown.textContent = "Entry in " + autoState.remaining + "s · " + curDesc();
     autoState.timer = setInterval(function () {
@@ -1446,6 +1832,8 @@
   function onAutoToggle() {
     if (t.auto.checked) {
       if (!auth.wsOpen) { t.auto.checked = false; showMsg("err", TA_ERRORS.notConnected); return; }
+      // Don't run both auto loops at once.
+      if (predAuto.running) { predAuto.running = false; predAuto.stopBuy = true; predAuto.realConfirmed = false; if (predAuto.timer) { clearTimeout(predAuto.timer); predAuto.timer = null; } updatePredAutoButtons(); }
       if (auth.isReal) {
         if (!t.realAck.checked) { t.auto.checked = false; showMsg("err", "REAL account: முதலில் 'Real பணம் என்று புரிந்துகொண்டேன்' tick பண்ணுங்க."); return; }
         if (!window.confirm("REAL பணத்தில் Auto mode — ஒவ்வொரு prediction-க்கும் தானாக trade ஆகும். உறுதியா?")) { t.auto.checked = false; return; }
@@ -1514,6 +1902,12 @@
   t.accSelect.addEventListener("change", switchAccount);
   t.btnTrade.addEventListener("click", function () { tradeOnce("manual"); });
   t.auto.addEventListener("change", onAutoToggle);
+  if (t.btnAutoPred) t.btnAutoPred.addEventListener("click", startPredAuto);
+  if (t.btnAutoStop) t.btnAutoStop.addEventListener("click", function () { stopAuto("Stop"); showMsg("info", "Auto trade prediction நிறுத்தப்பட்டது."); });
+  function onMgInput() { renderNextStake(); }
+  if (t.mgMult) t.mgMult.addEventListener("input", onMgInput);
+  if (t.maxStake) t.maxStake.addEventListener("input", onMgInput);
+  t.stake.addEventListener("input", onMgInput);
   t.digit.addEventListener("input", function () { t.follow.checked = false; });
   t.follow.addEventListener("change", function () { syncDigit(false); });
   t.market.addEventListener("change", function () { t.tradeMarket.textContent = t.market.value; });
@@ -1521,11 +1915,13 @@
   t.btnPnlReset.addEventListener("click", function () {
     if (busy) return;
     session.pnl = 0; session.trades = 0; session.wins = 0; renderPnl();
+    resetMartingale();
   });
   t.token.addEventListener("keydown", function (e) { if (e.key === "Enter") doConnect(); });
 
   setInterval(updateTradeButton, 1000);
   renderPnl();
+  renderNextStake();
   updateTradeButton();
 
   // Restore remembered token (only if the user opted in on this phone).
@@ -1541,11 +1937,14 @@
       return {
         connected: auth.wsOpen, account: auth.account && auth.account.account_id, isReal: auth.isReal,
         busy: busy, pnl: session.pnl, trades: session.trades, wins: session.wins, auto: t.auto.checked,
+        autoPred: !!predAuto.running, mgNext: currentStake(), lastBuy: lastBuy,
         hasToken: !!auth.token, open: Object.keys(openContracts).length, ctype: ctype
       };
     },
     setCtype: setCtype, CTYPES: CTYPES, checkToken: checkToken, normOffset: function (v) { return normOffset(v); },
     getCtype: function () { return ctype; },
+    startPredAuto: startPredAuto, stopPredAuto: function (r) { stopAuto(r || "Stop"); },
+    resetMartingale: resetMartingale, currentStake: currentStake,
     _forceDrop: function () { if (auth.ws) { try { auth.ws.close(); } catch (e) {} } }
   };
 })();
