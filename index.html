@@ -111,6 +111,13 @@
     .pred-stats { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; margin-top: 12px; text-align: left; padding: 10px 12px; border-radius: 14px; background: rgba(11,15,26,0.45); border: 1px solid rgba(168,85,247,0.3); }
     .pred-stats .rate { font-size: 1.2rem; }
     .pred-note { margin: 10px 0 0; font-size: 0.82rem; color: #e9d5ff; line-height: 1.45; }
+    .wait-box { margin-top: 12px; padding: 10px 10px 12px; border-radius: 14px; text-align: left; background: rgba(11,15,26,0.45); border: 1px solid rgba(34,211,238,0.28); }
+    .wait-box .check { justify-content: flex-start; margin-top: 0; font-weight: 700; color: #e0f2fe; }
+    .signal-status { margin-top: 8px; font-size: 0.88rem; font-weight: 700; color: #fde68a; min-height: 1.4em; line-height: 1.4; }
+    .signal-status.ready { color: #bbf7d0; }
+    .signal-status.off { color: var(--muted); font-weight: 600; }
+    .pred-hero.signal-on { border-color: rgba(250,204,21,0.7); box-shadow: 0 0 22px rgba(250,204,21,0.18); }
+    .pred-hero.signal-fire { border-color: rgba(34,197,94,0.75); }
     .fixed-wrap { margin-top: 10px; }
     .fixed-pills { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; margin-top: 6px; }
     .fixed-pills button { min-height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg2); color: var(--ink); font-weight: 900; font-size: 1rem; cursor: pointer; padding: 0; }
@@ -303,6 +310,25 @@
         </div>
       </div>
       <p class="pred-note" lang="ta" id="pred-note">இது இந்த முறை கடந்த ticks-ல் எத்தனை தடவை சரியா வந்தது என்பது மட்டுமே — "confidence" அல்ல. Matches-ல் சுமார் 10% தான் வாய்ப்பு; நஷ்டம் இல்லாமல் இருக்க payout-ஐ பொறுத்து சுமார் 11.18% வெற்றி வேணும்.</p>
+      <div class="wait-box" id="wait-box">
+        <label class="check"><input type="checkbox" id="wait-signal"> Wait for signal — hot digit % தேவை ஆனால்தான் trade</label>
+        <div class="row3" id="wait-fields">
+          <label class="field">Threshold (%)<input type="number" id="signal-threshold" value="14" min="10" max="30" step="0.5" inputmode="decimal"></label>
+          <label class="field">Window (ticks)<input type="number" id="signal-window" value="100" min="20" max="1000" step="1" inputmode="numeric"></label>
+          <label class="field">Cooldown (ticks)<input type="number" id="signal-cooldown" value="0" min="0" max="100" step="1" inputmode="numeric"></label>
+        </div>
+        <div class="signal-status off" id="signal-status" aria-live="polite">Wait for signal off</div>
+        <div class="pred-stats" id="signal-stats-row" style="margin-top:10px">
+          <div>
+            <div id="signal-trade-rate" class="rate">Signals 0</div>
+            <div class="be" id="signal-trade-sample">Signal trades hit rate · 0 / 0</div>
+          </div>
+          <div style="text-align:right">
+            <div id="signal-roll-rate" class="rate">—</div>
+            <div class="be" id="signal-roll-sample">Hot ≥ 14% hit rate · 0 / 0</div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <div class="hero">
@@ -411,7 +437,7 @@
 
         <div class="pred-auto-box" id="pred-auto-box">
           <h3>Auto trade prediction</h3>
-          <p class="ta-note">காட்டப்படும் prediction இலக்கத்திலேயே Matches trade. ஒவ்வொரு முடிவுக்குப் பிறகு அடுத்த trade. <b>நிறுத்து</b> / TP / SL / இணைப்பு துண்டானால் உடனே நிற்கும். வாங்கும் போது தெரியும் இலக்கமே contract barrier ஆகும்.</p>
+          <p class="ta-note">காட்டப்படும் prediction இலக்கத்திலேயே Matches trade. Wait for signal ON ஆனால், hot digit-ன் frequency threshold-ஐ தாண்டும் வரை காத்திருக்கும்; தாண்டியதும் அந்த hot digit-ல வாங்கும். <b>நிறுத்து</b> காத்திருப்பையும் நிறுத்தும். TP / SL / இணைப்பு துண்டானால் உடனே நிற்கும்.</p>
           <div class="row3">
             <label class="field">Martingale ×<input type="number" id="mg-mult" value="1" min="1" step="0.05" inputmode="decimal"></label>
             <label class="field">Max stake ($)<input type="number" id="max-stake" value="10" min="0.35" step="0.01" inputmode="decimal"></label>
@@ -564,8 +590,18 @@
     predSample: document.getElementById("pred-sample"),
     predBe: document.getElementById("pred-be"),
     predBeDetail: document.getElementById("pred-be-detail"),
+    predHero: document.getElementById("pred-hero"),
     fixedWrap: document.getElementById("fixed-wrap"),
     fixedPills: document.getElementById("fixed-pills"),
+    waitSignal: document.getElementById("wait-signal"),
+    signalThreshold: document.getElementById("signal-threshold"),
+    signalWindow: document.getElementById("signal-window"),
+    signalCooldown: document.getElementById("signal-cooldown"),
+    signalStatus: document.getElementById("signal-status"),
+    signalTradeRate: document.getElementById("signal-trade-rate"),
+    signalTradeSample: document.getElementById("signal-trade-sample"),
+    signalRollRate: document.getElementById("signal-roll-rate"),
+    signalRollSample: document.getElementById("signal-roll-sample"),
     hits: document.getElementById("hits"),
     rate: document.getElementById("rate"),
     fill: document.getElementById("fill"),
@@ -635,6 +671,29 @@
     return n;
   }
 
+  function clampNum(v, lo, hi, fallback) {
+    var n = Number(v);
+    if (!isFinite(n)) return fallback;
+    if (n < lo) n = lo;
+    if (n > hi) n = hi;
+    return n;
+  }
+  function waitEnabled() { return !!(el.waitSignal && el.waitSignal.checked); }
+  function signalWindowSize() { return Math.round(clampNum(el.signalWindow && el.signalWindow.value, 20, 1000, 100)); }
+  function signalThreshold() { return clampNum(el.signalThreshold && el.signalThreshold.value, 10, 30, 14); }
+  function signalCooldownTicks() { return Math.round(clampNum(el.signalCooldown && el.signalCooldown.value, 0, 100, 0)); }
+
+  function getHotSignal() {
+    var size = signalWindowSize();
+    var th = signalThreshold();
+    var win = windowDigits(state.digits, size);
+    if (!win.length) return { hot: null, freq: 0, count: 0, n: 0, threshold: th, ok: false, window: size };
+    var hot = predictDigit("hot", win);
+    var c = countsOf(win);
+    var freq = 100 * c[hot] / win.length;
+    return { hot: hot, freq: freq, count: c[hot], n: win.length, threshold: th, ok: freq + 1e-12 >= th, window: size };
+  }
+
   function payoutInfo() {
     var info = window.__payoutInfo || { stake: 0.35, payout: 3.13, be: 0.1118 };
     return info;
@@ -655,6 +714,25 @@
     }
   }
 
+  function renderSignalRoll() {
+    var n = state.signalRollTotal, h = state.signalRollHits;
+    var th = signalThreshold();
+    if (el.signalRollRate) {
+      el.signalRollRate.textContent = n === 0 ? "—" : ((h / n) * 100).toFixed(2) + "%";
+    }
+    if (el.signalRollSample) {
+      el.signalRollSample.textContent = "Hot ≥ " + th + "% hit rate · " + h + " / " + n + " (" + currentHorizon() + "-tick)";
+    }
+    if (el.signalTradeRate || el.signalTradeSample) {
+      var info = window.__signalTradeInfo || { trades: 0, wins: 0 };
+      if (el.signalTradeRate) el.signalTradeRate.textContent = "Signals " + info.trades;
+      if (el.signalTradeSample) {
+        var tr = info.trades, tw = info.wins;
+        el.signalTradeSample.textContent = "Signal trades hit rate · " + tw + " / " + tr + (tr ? " (" + ((tw / tr) * 100).toFixed(2) + "%)" : "");
+      }
+    }
+  }
+
   function renderPredStats() {
     var n = state.rollTotal, h = state.rollHits;
     if (!el.predRate) return;
@@ -665,6 +743,7 @@
       el.predRate.textContent = ((h / n) * 100).toFixed(2) + "%";
       el.predSample.textContent = "Hit rate · " + h + " / " + n + " (" + currentHorizon() + "-tick Matches)";
     }
+    renderSignalRoll();
     renderBreakEven();
   }
 
@@ -704,13 +783,43 @@
       el.lastDigit.textContent = String(state.digits[state.digits.length - 1]);
     }
     var prev = state.pendingPred;
-    state.pendingPred = predictDigit(method, win, state.fixedDigit);
+    if (waitEnabled()) {
+      var sig = getHotSignal();
+      state.pendingPred = sig.hot;
+      el.methodLabel.textContent = "Hot digit (wait for signal, last " + sig.window + ")";
+    } else {
+      state.pendingPred = predictDigit(method, win, state.fixedDigit);
+    }
     var shown = state.pendingPred == null ? "—" : String(state.pendingPred);
     if (el.prediction.textContent !== shown) pulsePred(el.prediction.textContent, shown);
     el.prediction.textContent = shown;
-    renderFreq(win, method);
+    renderFreq(win, waitEnabled() ? "hot" : method);
     renderStrip(state.digits);
     renderTracker();
+    if (el.predHero) {
+      var cls = "card pred-card pred-hero";
+      if (waitEnabled()) cls += " signal-on";
+      var sigNow = getHotSignal();
+      if (waitEnabled() && sigNow.ok) cls += " signal-fire";
+      el.predHero.className = cls;
+    }
+    // Idle status (when auto-pred is not running, trade script owns the text otherwise).
+    var running = window.__trade && window.__trade.getState && window.__trade.getState().autoPred;
+    if (el.signalStatus && !running) {
+      var sg = getHotSignal();
+      if (!waitEnabled()) {
+        el.signalStatus.className = "signal-status off";
+        el.signalStatus.textContent = "Wait for signal off";
+      } else if (sg.hot == null) {
+        el.signalStatus.className = "signal-status";
+        el.signalStatus.textContent = "hot digit — · window " + sg.window;
+      } else {
+        var freqS = (Math.round(sg.freq * 10) / 10).toFixed(1);
+        var thS = (Math.round(sg.threshold * 10) / 10).toFixed(1);
+        el.signalStatus.className = "signal-status" + (sg.ok ? " ready" : "");
+        el.signalStatus.textContent = "hot digit " + sg.hot + " = " + freqS + "% (தேவை " + thS + "%)";
+      }
+    }
     notifyHooks("view");
   }
 
@@ -736,6 +845,11 @@
     rollTotal: 0,
     rollWindow: [],
     predQueue: [],
+    signalRollHits: 0,
+    signalRollTotal: 0,
+    signalRollWindow: [],
+    signalQueue: [],
+    holdLive: false,
     ws: null,
     reqId: 1,
     pending: {},
@@ -754,6 +868,10 @@
     state.rollTotal = 0;
     state.rollWindow = [];
     state.predQueue = [];
+    state.signalRollHits = 0;
+    state.signalRollTotal = 0;
+    state.signalRollWindow = [];
+    state.signalQueue = [];
     renderPredStats();
   }
 
@@ -768,25 +886,37 @@
     if (state.pendingPred == null || !state.digits.length) return;
     state.predQueue.push({ left: currentHorizon(), pred: state.pendingPred });
     if (state.predQueue.length > 50) state.predQueue = state.predQueue.slice(-30);
+    var sig = getHotSignal();
+    if (sig.ok && sig.hot != null) {
+      state.signalQueue.push({ left: currentHorizon(), pred: sig.hot });
+      if (state.signalQueue.length > 50) state.signalQueue = state.signalQueue.slice(-30);
+    }
+  }
+
+  function resolveOneQueue(queueName, windowName, hitsName, totalName, digit) {
+    var kept = [];
+    var qlist = state[queueName];
+    for (var i = 0; i < qlist.length; i++) {
+      var q = qlist[i];
+      q.left -= 1;
+      if (q.left > 0) { kept.push(q); continue; }
+      if (q.left === 0) {
+        state[windowName].push(digit === q.pred);
+        if (state[windowName].length > 200) state[windowName].shift();
+        var hits = 0, w = state[windowName];
+        for (var j = 0; j < w.length; j++) if (w[j]) hits += 1;
+        state[hitsName] = hits;
+        state[totalName] = w.length;
+      }
+    }
+    state[queueName] = kept;
   }
 
   function resolvePredQueue() {
     if (!state.digits.length) return;
     var digit = state.digits[state.digits.length - 1];
-    var kept = [];
-    for (var i = 0; i < state.predQueue.length; i++) {
-      var q = state.predQueue[i];
-      q.left -= 1;
-      if (q.left > 0) { kept.push(q); continue; }
-      if (q.left === 0) {
-        state.rollWindow.push(digit === q.pred);
-        if (state.rollWindow.length > 200) state.rollWindow.shift();
-        state.rollHits = 0;
-        for (var j = 0; j < state.rollWindow.length; j++) if (state.rollWindow[j]) state.rollHits += 1;
-        state.rollTotal = state.rollWindow.length;
-      }
-    }
-    state.predQueue = kept;
+    resolveOneQueue("predQueue", "rollWindow", "rollHits", "rollTotal", digit);
+    resolveOneQueue("signalQueue", "signalRollWindow", "signalRollHits", "signalRollTotal", digit);
   }
 
   function setFixedDigit(d) {
@@ -810,11 +940,32 @@
   });
   el.method.addEventListener("change", function () {
     // Do not score the next tick against a prediction made under another method.
+    if (el.waitSignal) el.waitSignal.checked = el.method.value === "hot";
     state.readyToScore = false;
     resetRoll();
     refreshViews();
     state.readyToScore = state.digits.length > 0;
+    notifyHooks("wait");
   });
+  if (el.waitSignal) {
+    el.waitSignal.addEventListener("change", function () {
+      state.readyToScore = false;
+      resetRoll();
+      refreshViews();
+      state.readyToScore = state.digits.length > 0;
+      notifyHooks("wait");
+    });
+  }
+  function onSignalParamChange() {
+    state.readyToScore = false;
+    resetRoll();
+    refreshViews();
+    state.readyToScore = state.digits.length > 0;
+    notifyHooks("wait");
+  }
+  if (el.signalThreshold) el.signalThreshold.addEventListener("change", onSignalParamChange);
+  if (el.signalWindow) el.signalWindow.addEventListener("change", onSignalParamChange);
+  if (el.signalCooldown) el.signalCooldown.addEventListener("change", function () { notifyHooks("wait"); });
   if (el.fixedPills) {
     el.fixedPills.addEventListener("click", function (e) {
       var b = e.target.closest ? e.target.closest("button[data-d]") : null;
@@ -872,7 +1023,8 @@
     state.subId = null;
   }
 
-  function onTickPayload(tick) {
+  function onTickPayload(tick, fromTest) {
+    if (!fromTest && state.holdLive) return;
     if (!tick || tick.symbol && tick.symbol !== state.symbol) return;
     var price = tick.quote != null ? tick.quote : tick.price;
     var epoch = tick.epoch || 0;
@@ -1059,13 +1211,49 @@
         fixedDigit: state.fixedDigit,
         rollHits: state.rollHits,
         rollTotal: state.rollTotal,
+        signalRollHits: state.signalRollHits,
+        signalRollTotal: state.signalRollTotal,
+        waitOn: waitEnabled(),
         horizon: currentHorizon(),
         endpoint: state.endpointUrl,
         status: el.statusText.textContent
       };
     },
     setFixedDigit: setFixedDigit,
-    renderBreakEven: renderBreakEven
+    renderBreakEven: renderBreakEven,
+    getHotSignal: getHotSignal,
+    waitEnabled: waitEnabled,
+    signalWindowSize: signalWindowSize,
+    signalThreshold: signalThreshold,
+    signalCooldownTicks: signalCooldownTicks,
+    renderSignalRoll: renderSignalRoll,
+    // Test helpers: inject digits through the same live-tick path.
+    holdLive: function (on) { state.holdLive = !!on; },
+    appendDigitForTest: function (d) {
+      var digit = Number(d);
+      if (!(digit >= 0 && digit <= 9)) return;
+      var dec = decimalsOf(state.pipSize);
+      var f = Math.pow(10, dec);
+      var base = state.lastPrice != null ? Number(state.lastPrice) : 1000;
+      var truncated = Math.floor(Math.abs(base) * f / 10) * 10 + digit;
+      var price = truncated / f;
+      onTickPayload({ quote: price, epoch: (state.lastEpoch || 1) + 1, symbol: state.symbol, pip_size: state.pipSize }, true);
+    },
+    setDigitsForTest: function (arr) {
+      var list = [];
+      for (var i = 0; i < arr.length; i++) list.push(Number(arr[i]));
+      state.digits = list;
+      state.readyToScore = list.length > 0;
+      state.holdLive = true;
+      if (list.length) {
+        var dec = decimalsOf(state.pipSize);
+        var f = Math.pow(10, dec);
+        var last = list[list.length - 1];
+        state.lastPrice = (Math.floor(1000 * f / 10) * 10 + last) / f;
+      }
+      resetRoll();
+      refreshViews();
+    }
   };
   window.__payoutInfo = window.__payoutInfo || { stake: 0.35, payout: 3.13, be: 0.1118 };
   window.__setPayoutInfo = function (stake, payout) {
@@ -1116,7 +1304,8 @@
     market: $("market"), ctPills: $("ctype-pills"), digitWrap: $("digit-wrap"), offset: $("offset"), offsetWrap: $("offset-wrap"), ticksNote: $("ticks-note"),
     tokenWarn: $("token-warn"), followWrap: $("follow-wrap"),
     mgMult: $("mg-mult"), maxStake: $("max-stake"), nextStake: $("next-stake"),
-    btnAutoPred: $("btn-auto-pred"), btnAutoStop: $("btn-auto-stop")
+    btnAutoPred: $("btn-auto-pred"), btnAutoStop: $("btn-auto-stop"),
+    waitSignal: $("wait-signal"), signalStatus: $("signal-status")
   };
 
   // Token lives only in this closure (and localStorage if the user opts in).
@@ -1129,7 +1318,7 @@
   var busy = false;
   var openContracts = {};   // contract_id -> {entry, subId, timer, settled}
   var autoState = { timer: null, remaining: 0, realConfirmed: false };
-  var predAuto = { running: false, timer: null, realConfirmed: false, stopBuy: false };
+  var predAuto = { running: false, timer: null, realConfirmed: false, stopBuy: false, waiting: false, cooldownLeft: 0, signalTrades: 0, signalWins: 0 };
   var mgState = { next: null }; // null = use base stake from the form
   var lastBuy = { displayed: null, barrier: null, exit: null, profit: null, stake: null, contractId: null };
   var userEditedDigit = false;
@@ -1504,6 +1693,31 @@
     t.nextStake.textContent = s.toFixed(2);
   }
 
+  function waitEnabled() {
+    return !!(t.waitSignal && t.waitSignal.checked);
+  }
+  function publishSignalTradeInfo() {
+    window.__signalTradeInfo = { trades: predAuto.signalTrades, wins: predAuto.signalWins };
+    if (window.__predictor && window.__predictor.renderSignalRoll) window.__predictor.renderSignalRoll();
+  }
+  function fmtFreq(x) { return (Math.round(x * 10) / 10).toFixed(1); }
+  function setSignalStatus(text, kind) {
+    if (!t.signalStatus) return;
+    t.signalStatus.className = "signal-status" + (kind ? " " + kind : "");
+    t.signalStatus.textContent = text || "";
+    if (predAuto.running && text) t.countdown.textContent = text;
+  }
+  function snapshotSignal() {
+    if (window.__predictor && window.__predictor.getHotSignal) return window.__predictor.getHotSignal();
+    return { hot: null, freq: 0, n: 0, threshold: 14, ok: false, window: 100 };
+  }
+  function cooldownSetting() {
+    if (window.__predictor && window.__predictor.signalCooldownTicks) return window.__predictor.signalCooldownTicks();
+    var el = $("signal-cooldown");
+    var n = el ? Number(el.value) : 0;
+    return isFinite(n) && n >= 0 ? Math.round(n) : 0;
+  }
+
   function displayedPrediction() {
     var el = document.getElementById("prediction");
     if (el && /^[0-9]$/.test(String(el.textContent).trim())) return Number(el.textContent.trim());
@@ -1659,7 +1873,7 @@
         if (displayed != null && Number(displayed) !== Number(barrierDigit)) mid += " (shown " + displayed + ")";
       }
       var row = logEntry("open", timeNow(), mid, "…", inp.ct);
-      entry = { row: row, stake: Number(buy.buy_price), digit: barrierDigit, displayed: displayed, symbol: inp.symbol, ticks: inp.ticks, payout: Number(buy.payout || r.payout) };
+      entry = { row: row, stake: Number(buy.buy_price), digit: barrierDigit, displayed: displayed, symbol: inp.symbol, ticks: inp.ticks, payout: Number(buy.payout || r.payout), viaSignal: source === "autopred" && waitEnabled() };
       lastBuy.contractId = buy.contract_id;
       lastBuy.stake = entry.stake;
       lastBuy.barrier = barrierDigit;
@@ -1739,13 +1953,27 @@
     lastBuy.displayed = oc.entry.displayed != null ? oc.entry.displayed : oc.entry.digit;
     lastBuy.stake = oc.entry.stake;
     lastBuy.contractId = c.contract_id;
+    if (oc.entry.viaSignal) {
+      predAuto.signalTrades += 1;
+      if (won) predAuto.signalWins += 1;
+      publishSignalTradeInfo();
+    }
     applyMartingale(won, oc.entry.stake);
     if (oc.subId && auth.ws && auth.ws.readyState === 1) { try { wsSend({ forget: oc.subId }); } catch (e) {} }
     delete openContracts[c.contract_id];
     busy = false; updateTradeButton(); updatePredAutoButtons();
     showMsg(won ? "ok" : "info", (won ? "WIN " : "LOSS ") + (profit >= 0 ? "+" : "") + profit.toFixed(2) + " · pred " + (oc.entry.digit != null ? oc.entry.digit : "—") + " → exit " + (exitD != null ? exitD : "—") + " · Session P/L " + session.pnl.toFixed(2));
     var stopped = checkLimits();
-    if (!stopped && predAuto.running && auth.wsOpen) schedulePredNext(700);
+    if (!stopped && predAuto.running && auth.wsOpen) {
+      if (waitEnabled()) {
+        predAuto.cooldownLeft = cooldownSetting();
+        predAuto.waiting = true;
+        renderWaitStatus();
+        if (predAuto.cooldownLeft === 0) checkWaitSignal();
+      } else {
+        schedulePredNext(700);
+      }
+    }
   }
 
   function checkLimits() {
@@ -1758,12 +1986,18 @@
   // ---------- auto mode ----------
   function stopPredAuto(reason) {
     var was = predAuto.running;
+    var wasWaiting = predAuto.waiting;
     predAuto.running = false;
     predAuto.stopBuy = true;
+    predAuto.waiting = false;
+    predAuto.cooldownLeft = 0;
     predAuto.realConfirmed = false;
     if (predAuto.timer) { clearTimeout(predAuto.timer); predAuto.timer = null; }
     updatePredAutoButtons();
-    if (was && reason) t.countdown.textContent = "Auto prediction நிறுத்தப்பட்டது: " + reason;
+    if (was && reason) {
+      t.countdown.textContent = "Auto prediction நிறுத்தப்பட்டது: " + reason;
+      if (wasWaiting) setSignalStatus("நிறுத்தப்பட்டது: " + reason + " — காத்திருப்பு ரத்து", "off");
+    }
   }
 
   function stopAuto(reason) {
@@ -1778,6 +2012,11 @@
     if (!predAuto.running || predAuto.stopBuy) return;
     if (predAuto.timer) { clearTimeout(predAuto.timer); predAuto.timer = null; }
     if (!auth.wsOpen) { stopAuto("இணைப்பு துண்டானது"); return; }
+    if (waitEnabled()) {
+      predAuto.waiting = true;
+      renderWaitStatus();
+      return;
+    }
     t.countdown.textContent = "அடுத்த prediction trade…";
     predAuto.timer = setTimeout(function () {
       predAuto.timer = null;
@@ -1789,6 +2028,54 @@
     }, delayMs == null ? 700 : delayMs);
   }
 
+  function renderWaitStatus() {
+    var sig = snapshotSignal();
+    if (predAuto.cooldownLeft > 0) {
+      var extra = sig.hot != null ? " (hot digit " + sig.hot + " = " + fmtFreq(sig.freq) + "%)" : "";
+      setSignalStatus("காத்திருக்கு: cooldown " + predAuto.cooldownLeft + " ticks" + extra, "");
+      return;
+    }
+    if (sig.hot == null) {
+      setSignalStatus("காத்திருக்கு: ticks போதவில்லை (window " + (sig.window || 100) + ")", "");
+      return;
+    }
+    if (!sig.ok) {
+      setSignalStatus("காத்திருக்கு: hot digit " + sig.hot + " = " + fmtFreq(sig.freq) + "% (தேவை " + fmtFreq(sig.threshold) + "%)", "");
+      return;
+    }
+    setSignalStatus("Signal: hot digit " + sig.hot + " = " + fmtFreq(sig.freq) + "% ≥ " + fmtFreq(sig.threshold) + "%", "ready");
+  }
+
+  function checkWaitSignal() {
+    if (!predAuto.running || predAuto.stopBuy) return "off";
+    if (!waitEnabled()) return "off";
+    if (!auth.wsOpen) { stopAuto("இணைப்பு துண்டானது"); return "disc"; }
+    if (busy) { renderWaitStatus(); return "busy"; }
+    predAuto.waiting = true;
+    if (predAuto.cooldownLeft > 0) { renderWaitStatus(); return "cooldown"; }
+    var sig = snapshotSignal();
+    renderWaitStatus();
+    if (!sig || sig.hot == null || !sig.ok) return "wait";
+    // Condition met: lock the hot digit shown at this moment and buy Matches.
+    var methodEl = $("method");
+    if (methodEl && methodEl.value !== "hot") { methodEl.value = "hot"; methodEl.dispatchEvent(new Event("change")); }
+    t.follow.checked = true;
+    t.digit.value = String(sig.hot);
+    if (window.__predictor && window.__predictor.getState) {
+      // refreshViews already ran on the tick; digit on card is the hot digit when wait is on
+    }
+    predAuto.waiting = false;
+    t.countdown.textContent = "Entry now · Matches " + sig.hot + " (" + fmtFreq(sig.freq) + "%)";
+    tradeOnce("autopred");
+    return "buy";
+  }
+
+  function onSignalTick() {
+    if (!predAuto.running || !waitEnabled() || predAuto.stopBuy) return;
+    if (predAuto.cooldownLeft > 0) predAuto.cooldownLeft -= 1;
+    checkWaitSignal();
+  }
+
   function startPredAuto() {
     if (predAuto.running) return;
     if (!auth.wsOpen) { showMsg("err", TA_ERRORS.notConnected); return; }
@@ -1796,6 +2083,10 @@
     if (t.auto.checked) { t.auto.checked = false; if (autoState.timer) { clearInterval(autoState.timer); autoState.timer = null; } }
     if (ctype !== "DIGITMATCH") setCtype("DIGITMATCH");
     t.follow.checked = true;
+    if (waitEnabled()) {
+      var methodEl = $("method");
+      if (methodEl && methodEl.value !== "hot") { methodEl.value = "hot"; methodEl.dispatchEvent(new Event("change")); }
+    }
     syncDigit(true);
     if (auth.isReal) {
       if (!t.realAck.checked) { showMsg("err", "REAL account: முதலில் 'Real பணம் என்று புரிந்துகொண்டேன்' tick பண்ணுங்க."); return; }
@@ -1805,11 +2096,20 @@
     if (checkLimits()) return;
     predAuto.running = true;
     predAuto.stopBuy = false;
+    predAuto.cooldownLeft = 0;
     updatePredAutoButtons();
     renderNextStake();
-    t.countdown.textContent = "Auto prediction ON · Matches " + (displayedPrediction() != null ? displayedPrediction() : "—");
-    showMsg("ok", "Auto trade prediction தொடங்கியது. நிறுத்து அழுத்தினால் உடனே நிற்கும்.");
-    tradeOnce("autopred");
+    if (waitEnabled()) {
+      predAuto.waiting = true;
+      showMsg("ok", "Auto trade prediction தொடங்கியது. Hot digit % தேவை வரை காத்திருக்கும். நிறுத்து அழுத்தினால் காத்திருப்பும் நிற்கும்.");
+      renderWaitStatus();
+      checkWaitSignal();
+    } else {
+      predAuto.waiting = false;
+      t.countdown.textContent = "Auto prediction ON · Matches " + (displayedPrediction() != null ? displayedPrediction() : "—");
+      showMsg("ok", "Auto trade prediction தொடங்கியது. நிறுத்து அழுத்தினால் உடனே நிற்கும்.");
+      tradeOnce("autopred");
+    }
   }
 
   function maybeStartCountdown() {
@@ -1893,7 +2193,13 @@
   window.__predictorHooks = window.__predictorHooks || [];
   window.__predictorHooks.push(function (kind) {
     syncDigit(false);
-    if (kind === "tick") maybeStartCountdown();
+    if (kind === "tick") {
+      maybeStartCountdown();
+      onSignalTick();
+    }
+    if (kind === "wait" && predAuto.running && waitEnabled() && !busy) {
+      renderWaitStatus();
+    }
   });
 
   // ---------- events ----------
@@ -1915,6 +2221,7 @@
   t.btnPnlReset.addEventListener("click", function () {
     if (busy) return;
     session.pnl = 0; session.trades = 0; session.wins = 0; renderPnl();
+    predAuto.signalTrades = 0; predAuto.signalWins = 0; publishSignalTradeInfo();
     resetMartingale();
   });
   t.token.addEventListener("keydown", function (e) { if (e.key === "Enter") doConnect(); });
@@ -1922,6 +2229,7 @@
   setInterval(updateTradeButton, 1000);
   renderPnl();
   renderNextStake();
+  publishSignalTradeInfo();
   updateTradeButton();
 
   // Restore remembered token (only if the user opted in on this phone).
@@ -1937,14 +2245,16 @@
       return {
         connected: auth.wsOpen, account: auth.account && auth.account.account_id, isReal: auth.isReal,
         busy: busy, pnl: session.pnl, trades: session.trades, wins: session.wins, auto: t.auto.checked,
-        autoPred: !!predAuto.running, mgNext: currentStake(), lastBuy: lastBuy,
+        autoPred: !!predAuto.running, waiting: !!predAuto.waiting, cooldownLeft: predAuto.cooldownLeft,
+        waitOn: waitEnabled(), signalTrades: predAuto.signalTrades, signalWins: predAuto.signalWins,
+        mgNext: currentStake(), lastBuy: lastBuy,
         hasToken: !!auth.token, open: Object.keys(openContracts).length, ctype: ctype
       };
     },
     setCtype: setCtype, CTYPES: CTYPES, checkToken: checkToken, normOffset: function (v) { return normOffset(v); },
     getCtype: function () { return ctype; },
     startPredAuto: startPredAuto, stopPredAuto: function (r) { stopAuto(r || "Stop"); },
-    resetMartingale: resetMartingale, currentStake: currentStake,
+    checkWaitSignal: checkWaitSignal, resetMartingale: resetMartingale, currentStake: currentStake,
     _forceDrop: function () { if (auth.ws) { try { auth.ws.close(); } catch (e) {} } }
   };
 })();
