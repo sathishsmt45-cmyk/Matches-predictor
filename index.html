@@ -112,6 +112,8 @@
     .pred-stats .rate { font-size: 1.2rem; }
     .pred-note { margin: 10px 0 0; font-size: 0.82rem; color: #e9d5ff; line-height: 1.45; }
     .wait-box { margin-top: 12px; padding: 10px 10px 12px; border-radius: 14px; text-align: left; background: rgba(11,15,26,0.45); border: 1px solid rgba(34,211,238,0.28); }
+    .wait-box .small { margin: 6px 0 8px; color: #e0f2fe; }
+    #wait-signal-wrap { font-size: 0.86rem; font-weight: 600; }
     .wait-box .check { justify-content: flex-start; margin-top: 0; font-weight: 700; color: #e0f2fe; }
     .signal-status { margin-top: 8px; font-size: 0.88rem; font-weight: 700; color: #fde68a; min-height: 1.4em; line-height: 1.4; }
     .signal-status.ready { color: #bbf7d0; }
@@ -396,13 +398,74 @@
         <div id="ab-board" class="ab-board" aria-live="polite"></div>
       </div>
       <div class="wait-box" id="wait-box">
-        <label class="check"><input type="checkbox" id="wait-signal"> Wait for signal — hot digit % தேவை ஆனால்தான் trade</label>
-        <div class="row3" id="wait-fields">
-          <label class="field">Threshold (%)<input type="number" id="signal-threshold" value="14" min="10" max="30" step="0.5" inputmode="decimal"></label>
-          <label class="field">Window (ticks)<input type="number" id="signal-window" value="100" min="20" max="1000" step="1" inputmode="numeric"></label>
+        <label class="check"><input type="checkbox" id="sig-filter" checked> Signal filter / movement wait — movement வந்தால்தான் trade</label>
+        <label class="check" id="wait-signal-wrap"><input type="checkbox" id="wait-signal"> Wait for signal — hot digit % தேவை ஆனால்தான் trade</label>
+        <p class="small" lang="ta" id="sig-filter-note">உடனே trade வேண்டாம்; வலுவான movement / signal வந்தால்தான் நுழையும். இது கடந்த ticks வடிகட்டி மட்டுமே — எதிர்கால உத்தரவாதம் இல்லை.</p>
+
+        <div id="sig-fields-matches">
+          <label class="field" id="ctrl-sig-m-trigger">Matches trigger
+            <select id="sig-m-trigger" aria-label="Matches signal trigger">
+              <option value="hot">Hot digit %</option>
+              <option value="streak" selected>Digit streak / repeat</option>
+            </select>
+          </label>
+          <div class="row3" id="wait-fields">
+            <label class="field">Threshold (%)<input type="number" id="signal-threshold" value="14" min="10" max="30" step="0.5" inputmode="decimal"></label>
+            <label class="field">Window (ticks)<input type="number" id="signal-window" value="100" min="20" max="1000" step="1" inputmode="numeric"></label>
+            <label class="field">Streak K<input type="number" id="sig-m-k" value="3" min="2" max="10" step="1" inputmode="numeric"></label>
+          </div>
+        </div>
+
+        <div id="sig-fields-rf" class="hidden">
+          <div class="row3">
+            <label class="field">Rise/Fall trigger
+              <select id="sig-rf-trigger" aria-label="Rise/Fall signal trigger">
+                <option value="streak">Direction streak (K in a row)</option>
+                <option value="spike">Volatility spike</option>
+                <option value="reversal" selected>Reversal after extreme streak</option>
+              </select>
+            </label>
+            <label class="field">Side
+              <select id="sig-rf-side" aria-label="Rise/Fall follow or reverse">
+                <option value="follow" selected>Follow</option>
+                <option value="reverse">Reverse</option>
+              </select>
+            </label>
+            <label class="field">Streak K<input type="number" id="sig-rf-k" value="6" min="2" max="12" step="1" inputmode="numeric"></label>
+          </div>
+          <div class="row3" id="sig-rf-spike">
+            <label class="field">Spike N<input type="number" id="sig-rf-n" value="5" min="2" max="30" step="1" inputmode="numeric"></label>
+            <label class="field">Spike × avg<input type="number" id="sig-rf-x" value="2" min="1" max="6" step="0.1" inputmode="decimal"></label>
+            <label class="field">Avg window<input type="number" id="sig-rf-a" value="20" min="5" max="100" step="1" inputmode="numeric"></label>
+          </div>
+        </div>
+
+        <div id="sig-fields-eo" class="hidden">
+          <div class="row3">
+            <label class="field">Even/Odd trigger
+              <select id="sig-eo-trigger" aria-label="Even/Odd signal trigger">
+                <option value="imbalance">Parity imbalance</option>
+                <option value="streak" selected>Parity streak</option>
+              </select>
+            </label>
+            <label class="field">Side
+              <select id="sig-eo-side" aria-label="Even/Odd follow or reverse">
+                <option value="follow" selected>Follow</option>
+                <option value="reverse">Reverse</option>
+              </select>
+            </label>
+            <label class="field">Streak K<input type="number" id="sig-eo-k" value="6" min="2" max="20" step="1" inputmode="numeric"></label>
+          </div>
+          <div class="row3" id="sig-eo-imb">
+            <label class="field">Window N<input type="number" id="sig-eo-n" value="20" min="5" max="100" step="1" inputmode="numeric"></label>
+            <label class="field">Threshold (%)<input type="number" id="sig-eo-t" value="70" min="55" max="95" step="1" inputmode="decimal"></label>
+          </div>
+        </div>
+
+        <div class="row3" id="sig-cooldown-row">
           <label class="field">Cooldown (ticks)<input type="number" id="signal-cooldown" value="0" min="0" max="100" step="1" inputmode="numeric"></label>
         </div>
-        <div class="signal-status off" id="signal-status" aria-live="polite">Wait for signal off</div>
+        <div class="signal-status" id="signal-status" aria-live="polite">Signal காத்திருக்கு…</div>
         <div class="pred-stats" id="signal-stats-row" style="margin-top:10px">
           <div>
             <div id="signal-trade-rate" class="rate">Signals 0</div>
@@ -827,7 +890,28 @@
     abBox: document.getElementById("ab-box"),
     abBoard: document.getElementById("ab-board"),
     abWindow: document.getElementById("ab-window"),
-    abMargin: document.getElementById("ab-margin")
+    abMargin: document.getElementById("ab-margin"),
+    sigFilter: document.getElementById("sig-filter"),
+    sigFieldsMatches: document.getElementById("sig-fields-matches"),
+    sigFieldsRf: document.getElementById("sig-fields-rf"),
+    sigFieldsEo: document.getElementById("sig-fields-eo"),
+    sigMTrigger: document.getElementById("sig-m-trigger"),
+    sigMK: document.getElementById("sig-m-k"),
+    waitSignalWrap: document.getElementById("wait-signal-wrap"),
+    waitFields: document.getElementById("wait-fields"),
+    sigRfTrigger: document.getElementById("sig-rf-trigger"),
+    sigRfSide: document.getElementById("sig-rf-side"),
+    sigRfK: document.getElementById("sig-rf-k"),
+    sigRfSpike: document.getElementById("sig-rf-spike"),
+    sigRfN: document.getElementById("sig-rf-n"),
+    sigRfX: document.getElementById("sig-rf-x"),
+    sigRfA: document.getElementById("sig-rf-a"),
+    sigEoTrigger: document.getElementById("sig-eo-trigger"),
+    sigEoSide: document.getElementById("sig-eo-side"),
+    sigEoK: document.getElementById("sig-eo-k"),
+    sigEoImb: document.getElementById("sig-eo-imb"),
+    sigEoN: document.getElementById("sig-eo-n"),
+    sigEoT: document.getElementById("sig-eo-t")
   };
 
   function setStatus(kind, text) {
@@ -906,11 +990,161 @@
     var size = signalWindowSize();
     var th = signalThreshold();
     var win = windowDigits(state.digits, size);
-    if (!win.length) return { hot: null, freq: 0, count: 0, n: 0, threshold: th, ok: false, window: size };
+    if (!win.length) return { hot: null, freq: 0, count: 0, n: 0, threshold: th, ok: false, window: size, kind: "hot" };
     var hot = predictDigit("hot", win);
     var c = countsOf(win);
     var freq = 100 * c[hot] / win.length;
-    return { hot: hot, freq: freq, count: c[hot], n: win.length, threshold: th, ok: freq + 1e-12 >= th, window: size };
+    return { hot: hot, digit: hot, freq: freq, count: c[hot], n: win.length, threshold: th, ok: freq + 1e-12 >= th, window: size, kind: "hot" };
+  }
+
+  function sigFilterOn() { return !!(el.sigFilter && el.sigFilter.checked); }
+  function sigMTrigger() { return (el.sigMTrigger && el.sigMTrigger.value) || "streak"; }
+  function sigRfTrigger() { return (el.sigRfTrigger && el.sigRfTrigger.value) || "reversal"; }
+  function sigEoTrigger() { return (el.sigEoTrigger && el.sigEoTrigger.value) || "streak"; }
+  function isHotWait() {
+    if (isRfMode() || isEoMode()) return false;
+    if (el.waitSignal && el.waitSignal.checked) return true;
+    return sigFilterOn() && sigMTrigger() === "hot";
+  }
+  function waitEnabled() {
+    if (el.waitSignal && el.waitSignal.checked && !isRfMode() && !isEoMode()) return true;
+    return sigFilterOn();
+  }
+  function signMove(a, b) {
+    a = Number(a); b = Number(b);
+    return b > a ? 1 : b < a ? -1 : 0;
+  }
+  function lastDirStreakAt(prices, endIdx) {
+    if (!prices || endIdx < 1) return { dir: 0, k: 0 };
+    var last = signMove(prices[endIdx - 1], prices[endIdx]);
+    if (!last) return { dir: 0, k: 0 };
+    var k = 1;
+    for (var j = endIdx - 1; j >= 1; j--) {
+      var sg = signMove(prices[j - 1], prices[j]);
+      if (sg !== last) break;
+      k += 1;
+    }
+    return { dir: last, k: k };
+  }
+  function applyDirSide(sign, side) {
+    if (!sign) return null;
+    var raw = sign > 0 ? "rise" : "fall";
+    return side === "reverse" ? (raw === "rise" ? "fall" : "rise") : raw;
+  }
+  function applyParSide(p, side) {
+    if (!p) return null;
+    return side === "reverse" ? (p === "even" ? "odd" : "even") : p;
+  }
+  function getRfMoveSignal() {
+    var trigger = sigRfTrigger();
+    var side = (el.sigRfSide && el.sigRfSide.value) || "follow";
+    var K = Math.round(clampNum(el.sigRfK && el.sigRfK.value, 2, 12, 6));
+    var prices = state.prices;
+    var i = prices.length - 1;
+    if (trigger === "streak") {
+      var st = lastDirStreakAt(prices, i);
+      var ok = st.k >= K && st.dir !== 0;
+      return { ok: ok, dir: ok ? applyDirSide(st.dir, side) : null, rawDir: st.dir > 0 ? "rise" : st.dir < 0 ? "fall" : null, kind: "streak", k: st.k, need: K, side: side, ready: prices.length > K };
+    }
+    if (trigger === "spike") {
+      var N = Math.round(clampNum(el.sigRfN && el.sigRfN.value, 2, 30, 5));
+      var X = clampNum(el.sigRfX && el.sigRfX.value, 1, 6, 2);
+      var A = Math.round(clampNum(el.sigRfA && el.sigRfA.value, 5, 100, 20));
+      if (i < Math.max(N, A)) return { ok: false, dir: null, kind: "spike", ready: false, need: X, n: N };
+      var change = Math.abs(prices[i] - prices[i - N]);
+      var sum = 0, c = 0, from = Math.max(1, i - A + 1);
+      for (var j = from; j <= i; j++) { sum += Math.abs(prices[j] - prices[j - 1]); c += 1; }
+      var avg = c ? sum / c : 0;
+      var raw = signMove(prices[i - N], prices[i]);
+      var ratio = avg > 0 ? change / avg : 0;
+      var ok = avg > 0 && change + 1e-12 >= X * avg && raw !== 0;
+      return { ok: ok, dir: ok ? applyDirSide(raw, side) : null, rawDir: raw > 0 ? "rise" : raw < 0 ? "fall" : null, kind: "spike", ratio: ratio, need: X, n: N, side: side, ready: true };
+    }
+    if (i < K + 1) return { ok: false, dir: null, kind: "reversal", ready: false, need: K, k: 0 };
+    var last = signMove(prices[i - 1], prices[i]);
+    var stB = lastDirStreakAt(prices, i - 1);
+    var okR = stB.k >= K && last !== 0 && last !== stB.dir;
+    return { ok: okR, dir: okR ? applyDirSide(last, side) : null, rawDir: last > 0 ? "rise" : last < 0 ? "fall" : null, kind: "reversal", k: stB.k, need: K, last: last, side: side, ready: true };
+  }
+  function getEoMoveSignal() {
+    var trigger = sigEoTrigger();
+    var side = (el.sigEoSide && el.sigEoSide.value) || "follow";
+    var digits = state.digits;
+    var i = digits.length - 1;
+    if (trigger === "imbalance") {
+      var N = Math.round(clampNum(el.sigEoN && el.sigEoN.value, 5, 100, 20));
+      var T = clampNum(el.sigEoT && el.sigEoT.value, 55, 95, 70);
+      if (digits.length < N) return { ok: false, parity: null, kind: "imbalance", ready: false, need: T, window: N };
+      var even = 0;
+      for (var j = digits.length - N; j < digits.length; j++) if (digitParity(digits[j]) === "even") even += 1;
+      var evenPct = 100 * even / N, oddPct = 100 - evenPct;
+      var ok = evenPct + 1e-12 >= T || oddPct + 1e-12 >= T;
+      var raw = evenPct >= oddPct ? "even" : "odd";
+      return { ok: ok, parity: ok ? applyParSide(raw, side) : null, rawParity: raw, kind: "imbalance", freq: Math.max(evenPct, oddPct), threshold: T, window: N, side: side, ready: true };
+    }
+    var K = Math.round(clampNum(el.sigEoK && el.sigEoK.value, 2, 20, 6));
+    if (digits.length < K) return { ok: false, parity: null, kind: "streak", ready: false, need: K, k: digits.length };
+    var p = digitParity(digits[i]);
+    var k = 1;
+    for (var q = i - 1; q >= 0 && k < K; q--) {
+      if (digitParity(digits[q]) !== p) break;
+      k += 1;
+    }
+    var okS = k >= K && p;
+    return { ok: !!okS, parity: okS ? applyParSide(p, side) : null, rawParity: p, kind: "streak", k: k, need: K, side: side, ready: true };
+  }
+  function getMatchesStreakSignal() {
+    var K = Math.round(clampNum(el.sigMK && el.sigMK.value, 2, 10, 3));
+    var digits = state.digits;
+    if (digits.length < K) return { ok: false, digit: null, kind: "streak", ready: false, need: K, k: digits.length };
+    var d = digits[digits.length - 1];
+    var k = 1;
+    for (var j = digits.length - 2; j >= 0 && k < K; j--) {
+      if (digits[j] !== d) break;
+      k += 1;
+    }
+    var ok = k >= K;
+    return { ok: ok, digit: ok ? d : null, hot: ok ? d : null, kind: "streak", k: k, need: K, ready: true };
+  }
+  function getMoveSignal() {
+    if (isRfMode()) return getRfMoveSignal();
+    if (isEoMode()) return getEoMoveSignal();
+    if (isHotWait() || (sigFilterOn() && sigMTrigger() === "hot")) return getHotSignal();
+    if (sigFilterOn() && sigMTrigger() === "streak") return getMatchesStreakSignal();
+    if (el.waitSignal && el.waitSignal.checked) return getHotSignal();
+    return { ok: false, off: true };
+  }
+  function signalDetail(sig) {
+    if (!sig || sig.off) return "";
+    if (sig.kind === "hot") return "hot digit " + (sig.hot != null ? sig.hot : "—") + " = " + (Math.round((sig.freq || 0) * 10) / 10).toFixed(1) + "% (தேவை " + (Math.round((sig.threshold || 0) * 10) / 10).toFixed(1) + "%)";
+    if (sig.kind === "streak" && sig.dir != null || (sig.kind === "streak" && isRfMode())) return "திசை streak " + (sig.k || 0) + "/" + (sig.need || 0) + (sig.rawDir ? " " + sig.rawDir : "");
+    if (sig.kind === "streak" && (isEoMode() || sig.parity != null || sig.rawParity)) return "parity streak " + (sig.k || 0) + "/" + (sig.need || 0) + (sig.rawParity ? " " + sig.rawParity : "");
+    if (sig.kind === "streak") return "digit streak " + (sig.k || 0) + "/" + (sig.need || 0) + (sig.digit != null ? " · " + sig.digit : "");
+    if (sig.kind === "spike") return "spike " + (sig.ratio != null ? sig.ratio.toFixed(2) : "—") + "× (தேவை " + (sig.need || 0) + "×)";
+    if (sig.kind === "reversal") return "reversal after streak " + (sig.k || 0) + "/" + (sig.need || 0) + (sig.rawDir ? " → " + sig.rawDir : "");
+    if (sig.kind === "imbalance") return "parity " + (sig.rawParity || "—") + " = " + (sig.freq != null ? (Math.round(sig.freq * 10) / 10).toFixed(1) : "—") + "% (தேவை " + (sig.threshold || 0) + "%, N=" + (sig.window || 0) + ")";
+    return sig.kind || "";
+  }
+  function renderMoveStatus() {
+    if (!el.signalStatus) return;
+    var running = window.__trade && window.__trade.getState && window.__trade.getState().autoPred;
+    if (running) return;
+    if (!waitEnabled()) {
+      el.signalStatus.className = "signal-status off";
+      el.signalStatus.textContent = "Signal filter off";
+      return;
+    }
+    var sig = getMoveSignal();
+    if (sig.ok) {
+      el.signalStatus.className = "signal-status ready";
+      el.signalStatus.textContent = "Signal: " + signalDetail(sig);
+    } else if (sig.ready === false) {
+      el.signalStatus.className = "signal-status";
+      el.signalStatus.textContent = "Signal காத்திருக்கு… ticks போதவில்லை";
+    } else {
+      el.signalStatus.className = "signal-status";
+      el.signalStatus.textContent = "Signal காத்திருக்கு… " + signalDetail(sig);
+    }
   }
 
   function payoutInfo() {
@@ -935,21 +1169,23 @@
   }
 
   function renderSignalRoll() {
-    var n = state.signalRollTotal, h = state.signalRollHits;
-    var th = signalThreshold();
+    var freqN = state.sigTickTotal, freqH = state.sigTickOk;
+    var n = state.sigVirtTotal, h = state.sigVirtHits;
+    if (el.signalTradeRate) {
+      el.signalTradeRate.textContent = freqN ? ("Signals " + ((100 * freqH / freqN).toFixed(1) + "%")) : "Signals 0";
+    }
+    if (el.signalTradeSample) {
+      el.signalTradeSample.textContent = "Signal frequency · " + freqH + " / " + freqN + (freqN ? " ticks" : "");
+    }
     if (el.signalRollRate) {
       el.signalRollRate.textContent = n === 0 ? "—" : ((h / n) * 100).toFixed(2) + "%";
     }
     if (el.signalRollSample) {
-      el.signalRollSample.textContent = "Hot ≥ " + th + "% hit rate · " + h + " / " + n + " (" + currentHorizon() + "-tick)";
+      el.signalRollSample.textContent = "Signal hit rate · " + h + " / " + n + " (" + horizonFor(state.predMode) + "-tick)";
     }
-    if (el.signalTradeRate || el.signalTradeSample) {
-      var info = window.__signalTradeInfo || { trades: 0, wins: 0 };
-      if (el.signalTradeRate) el.signalTradeRate.textContent = "Signals " + info.trades;
-      if (el.signalTradeSample) {
-        var tr = info.trades, tw = info.wins;
-        el.signalTradeSample.textContent = "Signal trades hit rate · " + tw + " / " + tr + (tr ? " (" + ((tw / tr) * 100).toFixed(2) + "%)" : "");
-      }
+    var info = window.__signalTradeInfo || { trades: 0, wins: 0 };
+    if (info.trades && el.signalTradeSample) {
+      el.signalTradeSample.textContent += " · trades " + info.wins + " / " + info.trades;
     }
   }
 
@@ -973,7 +1209,7 @@
       el.predRate.textContent = ((h / n) * 100).toFixed(2) + "%";
       el.predSample.textContent = "Hit rate · " + h + " / " + n + " (" + label + ")";
     }
-    if (!isRfMode() && !isEoMode()) renderSignalRoll();
+    renderSignalRoll();
     renderBreakEven();
   }
 
@@ -1030,6 +1266,14 @@
     }
     var rfMoves = refreshRfPrediction();
     var eoCounts = refreshEoPrediction();
+    if (waitEnabled()) {
+      var sigNow0 = getMoveSignal();
+      state.lastSignal = sigNow0;
+      if (sigNow0 && sigNow0.ok) {
+        if (isRfMode() && sigNow0.dir) state.pendingRf = sigNow0.dir;
+        if (isEoMode() && sigNow0.parity) state.pendingEo = sigNow0.parity;
+      }
+    }
     if (isRfMode()) {
       var rfm = rfMethodVal();
       var actR = activeMethod("risefall");
@@ -1095,9 +1339,17 @@
       if (el.eoDetail) el.eoDetail.classList.add("hidden");
       if (el.eoFixedWrap) el.eoFixedWrap.className = "eo-fixed hidden";
       if (waitEnabled()) {
-        var sig = getHotSignal();
-        state.pendingPred = sig.hot;
-        el.methodLabel.textContent = "Hot digit (wait for signal, last " + sig.window + ")";
+        var sigM = getMoveSignal();
+        state.lastSignal = sigM;
+        if (sigM.kind === "hot") {
+          state.pendingPred = sigM.ok || sigM.hot != null ? sigM.hot : predictDigit(actM, win, state.fixedDigit);
+          el.methodLabel.textContent = "Hot digit (wait for signal, last " + (sigM.window || 100) + ")";
+        } else if (sigM.kind === "streak") {
+          state.pendingPred = sigM.ok ? sigM.digit : predictDigit(actM, win, state.fixedDigit);
+          el.methodLabel.textContent = "Digit streak / repeat" + (sigM.need ? " · K=" + sigM.need : "") + (sigM.ok ? " · signal " + sigM.digit : "");
+        } else {
+          state.pendingPred = predictDigit(actM, win, state.fixedDigit);
+        }
       } else {
         state.pendingPred = predictDigit(actM, win, state.fixedDigit);
       }
@@ -1112,30 +1364,13 @@
       var cls = "card pred-card pred-hero";
       if (isRfMode()) cls += " mode-rf";
       else if (isEoMode()) cls += " mode-eo";
-      else {
-        if (waitEnabled()) cls += " signal-on";
-        var sigNow = getHotSignal();
-        if (waitEnabled() && sigNow.ok) cls += " signal-fire";
-      }
+      if (waitEnabled()) cls += " signal-on";
+      var sigFire = waitEnabled() && (state.lastSignal ? state.lastSignal.ok : getMoveSignal().ok);
+      if (sigFire) cls += " signal-fire";
       el.predHero.className = cls;
     }
     // Idle status (when auto-pred is not running, trade script owns the text otherwise).
-    var running = window.__trade && window.__trade.getState && window.__trade.getState().autoPred;
-    if (el.signalStatus && !running) {
-      var sg = getHotSignal();
-      if (!waitEnabled()) {
-        el.signalStatus.className = "signal-status off";
-        el.signalStatus.textContent = "Wait for signal off";
-      } else if (sg.hot == null) {
-        el.signalStatus.className = "signal-status";
-        el.signalStatus.textContent = "hot digit — · window " + sg.window;
-      } else {
-        var freqS = (Math.round(sg.freq * 10) / 10).toFixed(1);
-        var thS = (Math.round(sg.threshold * 10) / 10).toFixed(1);
-        el.signalStatus.className = "signal-status" + (sg.ok ? " ready" : "");
-        el.signalStatus.textContent = "hot digit " + sg.hot + " = " + freqS + "% (தேவை " + thS + "%)";
-      }
-    }
+    renderMoveStatus();
     renderLeaderboard();
     notifyHooks("view");
   }
@@ -1163,6 +1398,13 @@
     eoRollWindow: [],
     eoQueue: [],
     shadow: null,
+    lastSignal: null,
+    sigTickOk: 0,
+    sigTickTotal: 0,
+    sigVirtHits: 0,
+    sigVirtTotal: 0,
+    sigVirtWindow: [],
+    sigVirtQueue: [],
     rfMoves: { up: 0, down: 0, tie: 0, last: 0, n: 0 },
     rfRollHits: 0,
     rfRollTotal: 0,
@@ -1391,6 +1633,12 @@
     state.signalQueue = [];
     resetRfRoll();
     resetEoRoll();
+    state.sigTickOk = 0;
+    state.sigTickTotal = 0;
+    state.sigVirtHits = 0;
+    state.sigVirtTotal = 0;
+    state.sigVirtWindow = [];
+    state.sigVirtQueue = [];
     renderPredStats();
   }
 
@@ -1401,6 +1649,42 @@
     renderTracker();
   }
 
+  function enqueueSigVirt() {
+    if (!waitEnabled()) return;
+    var sig = getMoveSignal();
+    if (!sig || !sig.ok) return;
+    var q = { left: horizonFor(state.predMode) };
+    if (isRfMode() && sig.dir) { q.kind = "rf"; q.dir = sig.dir; q.entry = Number(state.lastPrice); }
+    else if (isEoMode() && sig.parity) { q.kind = "eo"; q.parity = sig.parity; }
+    else if (sig.digit != null || sig.hot != null) { q.kind = "m"; q.pred = sig.digit != null ? sig.digit : sig.hot; }
+    else return;
+    state.sigVirtQueue.push(q);
+    if (state.sigVirtQueue.length > 80) state.sigVirtQueue = state.sigVirtQueue.slice(-60);
+  }
+  function resolveSigVirtQueue() {
+    if (!state.sigVirtQueue.length) return;
+    var kept = [];
+    var exitP = state.prices.length ? Number(state.prices[state.prices.length - 1]) : null;
+    var exitD = state.digits.length ? state.digits[state.digits.length - 1] : null;
+    for (var i = 0; i < state.sigVirtQueue.length; i++) {
+      var q = state.sigVirtQueue[i];
+      q.left -= 1;
+      if (q.left > 0) { kept.push(q); continue; }
+      if (q.left === 0) {
+        var hit = false;
+        if (q.kind === "rf" && exitP != null) hit = q.dir === "rise" ? exitP > q.entry : exitP < q.entry;
+        else if (q.kind === "eo" && exitD != null) hit = digitParity(exitD) === q.parity;
+        else if (q.kind === "m" && exitD != null) hit = exitD === q.pred;
+        state.sigVirtWindow.push(!!hit);
+        if (state.sigVirtWindow.length > 200) state.sigVirtWindow.shift();
+        var hits = 0, w = state.sigVirtWindow;
+        for (var j = 0; j < w.length; j++) if (w[j]) hits += 1;
+        state.sigVirtHits = hits;
+        state.sigVirtTotal = w.length;
+      }
+    }
+    state.sigVirtQueue = kept;
+  }
   function enqueuePrediction() {
     if (state.pendingPred != null && state.digits.length) {
       state.predQueue.push({ left: horizonFor("matches"), pred: state.pendingPred });
@@ -1524,11 +1808,27 @@
     el.waitSignal.addEventListener("change", function () {
       state.readyToScore = false;
       resetRoll();
+      applyPredModeUi();
       refreshViews();
       state.readyToScore = state.digits.length > 0;
       notifyHooks("wait");
     });
   }
+  function onSigFilterChange() {
+    state.readyToScore = false;
+    resetRoll();
+    applyPredModeUi();
+    refreshViews();
+    state.readyToScore = state.digits.length > 0;
+    notifyHooks("wait");
+  }
+  if (el.sigFilter) el.sigFilter.addEventListener("change", onSigFilterChange);
+  ["sigMTrigger","sigMK","sigRfTrigger","sigRfSide","sigRfK","sigRfN","sigRfX","sigRfA","sigEoTrigger","sigEoSide","sigEoK","sigEoN","sigEoT"].forEach(function (k) {
+    if (el[k]) {
+      el[k].addEventListener("change", onSigFilterChange);
+      el[k].addEventListener("input", function () { refreshViews(); renderMoveStatus(); });
+    }
+  });
   function onSignalParamChange() {
     state.readyToScore = false;
     resetRoll();
@@ -1557,7 +1857,21 @@
     if (el.ctrlEoMethod) el.ctrlEoMethod.classList.toggle("hidden", !eo);
     var eoNeedsN = eo && (eoMethodVal() === "majority" || eoMethodVal() === "reverse" || eoMethodVal() === "autobest");
     if (el.ctrlEoN) el.ctrlEoN.classList.toggle("hidden", !eoNeedsN);
-    if (el.waitBox) el.waitBox.classList.toggle("hidden", special);
+    if (el.waitBox) el.waitBox.classList.remove("hidden");
+    if (el.sigFieldsMatches) el.sigFieldsMatches.classList.toggle("hidden", special);
+    if (el.sigFieldsRf) el.sigFieldsRf.classList.toggle("hidden", !rf);
+    if (el.sigFieldsEo) el.sigFieldsEo.classList.toggle("hidden", !eo);
+    if (el.waitSignalWrap) el.waitSignalWrap.classList.toggle("hidden", special);
+    if (el.sigRfSpike) el.sigRfSpike.classList.toggle("hidden", !rf || sigRfTrigger() !== "spike");
+    if (el.sigEoImb) el.sigEoImb.classList.toggle("hidden", !eo || sigEoTrigger() !== "imbalance");
+    if (el.sigRfK) {
+      var showK = rf && (sigRfTrigger() === "streak" || sigRfTrigger() === "reversal");
+      el.sigRfK.closest && el.sigRfK.closest("label") && el.sigRfK.closest("label").classList.toggle("hidden", !showK);
+    }
+    if (el.sigEoK) {
+      var showEk = eo && sigEoTrigger() === "streak";
+      el.sigEoK.closest && el.sigEoK.closest("label") && el.sigEoK.closest("label").classList.toggle("hidden", !showEk);
+    }
     if (el.predNote) el.predNote.classList.toggle("hidden", special);
     if (el.rfNote) el.rfNote.classList.toggle("hidden", !rf);
     if (el.eoNote) el.eoNote.classList.toggle("hidden", !eo);
@@ -1740,15 +2054,25 @@
       resolvePredQueue();
       resolveShadows();
       maybeSwitchAutoBest();
+      resolveSigVirtQueue();
     }
     var wasReady = state.readyToScore;
     state.readyToScore = true;
     refreshViews();
+    if (waitEnabled()) {
+      var sigT = getMoveSignal();
+      if (sigT && sigT.ready !== false) {
+        state.sigTickTotal += 1;
+        if (sigT.ok) state.sigTickOk += 1;
+      }
+    }
     if (wasReady) {
       enqueuePrediction();
       enqueueShadows();
+      enqueueSigVirt();
     }
     notifyHooks("tick");
+    renderSignalRoll();
   }
 
   function loadHistoryAndSubscribe() {
@@ -1934,6 +2258,11 @@
         autoBestLeader: (function () { var L = leaderOf(state.predMode); return L ? L.method : null; })(),
         autoBestWindow: autoBestWindow(),
         autoBestMargin: autoBestMargin(),
+        sigFilter: sigFilterOn(),
+        sigKind: state.lastSignal && state.lastSignal.kind,
+        sigOk: !!(state.lastSignal && state.lastSignal.ok),
+        sigTicks: state.sigTickTotal,
+        sigTickOk: state.sigTickOk,
         prices: state.prices.length,
         endpoint: state.endpointUrl,
         status: el.statusText.textContent
@@ -1942,6 +2271,9 @@
     setFixedDigit: setFixedDigit,
     renderBreakEven: renderBreakEven,
     getHotSignal: getHotSignal,
+    getMoveSignal: getMoveSignal,
+    sigFilterOn: sigFilterOn,
+    isHotWait: isHotWait,
     waitEnabled: waitEnabled,
     signalWindowSize: signalWindowSize,
     signalThreshold: signalThreshold,
@@ -2516,8 +2848,14 @@
     return "Matches " + (displayedPrediction() != null ? displayedPrediction() : "—");
   }
   function waitEnabled() {
-    if (isRfTradeMode() || isEoTradeMode()) return false;
-    return !!(t.waitSignal && t.waitSignal.checked);
+    if (t.waitSignal && t.waitSignal.checked && !isRfTradeMode() && !isEoTradeMode()) return true;
+    var f = $("sig-filter");
+    if (f && f.checked) return true;
+    if (window.__predictor && window.__predictor.waitEnabled) return !!window.__predictor.waitEnabled();
+    return false;
+  }
+  function isHotWaitTrade() {
+    return !!(window.__predictor && window.__predictor.isHotWait && window.__predictor.isHotWait());
   }
   function publishSignalTradeInfo() {
     window.__signalTradeInfo = { trades: predAuto.signalTrades, wins: predAuto.signalWins };
@@ -2531,6 +2869,7 @@
     if (predAuto.running && text) t.countdown.textContent = text;
   }
   function snapshotSignal() {
+    if (window.__predictor && window.__predictor.getMoveSignal) return window.__predictor.getMoveSignal();
     if (window.__predictor && window.__predictor.getHotSignal) return window.__predictor.getHotSignal();
     return { hot: null, freq: 0, n: 0, threshold: 14, ok: false, window: 100 };
   }
@@ -2974,22 +3313,37 @@
     }, delayMs == null ? 700 : delayMs);
   }
 
+  function signalDetailTrade(sig) {
+    if (!sig) return "";
+    if (window.__predictor && sig && (sig.kind || sig.hot != null)) {
+      // reuse predictor formatting when possible
+    }
+    if (sig.kind === "hot" || (sig.hot != null && sig.freq != null && sig.threshold != null && !sig.kind)) {
+      return "hot digit " + (sig.hot != null ? sig.hot : "—") + " = " + fmtFreq(sig.freq) + "% (தேவை " + fmtFreq(sig.threshold) + "%)";
+    }
+    if (sig.kind === "streak" && (isRfTradeMode() || sig.dir || sig.rawDir)) return "திசை streak " + (sig.k || 0) + "/" + (sig.need || 0) + (sig.rawDir ? " " + sig.rawDir : "");
+    if (sig.kind === "streak" && (isEoTradeMode() || sig.parity || sig.rawParity)) return "parity streak " + (sig.k || 0) + "/" + (sig.need || 0) + (sig.rawParity ? " " + sig.rawParity : "");
+    if (sig.kind === "streak") return "digit streak " + (sig.k || 0) + "/" + (sig.need || 0) + (sig.digit != null ? " · " + sig.digit : "");
+    if (sig.kind === "spike") return "spike " + (sig.ratio != null ? Number(sig.ratio).toFixed(2) : "—") + "× (தேவை " + (sig.need || 0) + "×)";
+    if (sig.kind === "reversal") return "reversal after streak " + (sig.k || 0) + "/" + (sig.need || 0) + (sig.rawDir ? " → " + sig.rawDir : "");
+    if (sig.kind === "imbalance") return "parity " + (sig.rawParity || "—") + " = " + (sig.freq != null ? fmtFreq(sig.freq) : "—") + "% (தேவை " + (sig.threshold || 0) + "%)";
+    return "";
+  }
   function renderWaitStatus() {
-    var sig = snapshotSignal();
+    var sig = snapshotSignal() || {};
     if (predAuto.cooldownLeft > 0) {
-      var extra = sig.hot != null ? " (hot digit " + sig.hot + " = " + fmtFreq(sig.freq) + "%)" : "";
-      setSignalStatus("காத்திருக்கு: cooldown " + predAuto.cooldownLeft + " ticks" + extra, "");
+      setSignalStatus("Signal காத்திருக்கு… cooldown " + predAuto.cooldownLeft + " ticks " + signalDetailTrade(sig), "");
       return;
     }
-    if (sig.hot == null) {
-      setSignalStatus("காத்திருக்கு: ticks போதவில்லை (window " + (sig.window || 100) + ")", "");
+    if (sig.ready === false) {
+      setSignalStatus("Signal காத்திருக்கு… ticks போதவில்லை", "");
       return;
     }
     if (!sig.ok) {
-      setSignalStatus("காத்திருக்கு: hot digit " + sig.hot + " = " + fmtFreq(sig.freq) + "% (தேவை " + fmtFreq(sig.threshold) + "%)", "");
+      setSignalStatus("Signal காத்திருக்கு… " + signalDetailTrade(sig), "");
       return;
     }
-    setSignalStatus("Signal: hot digit " + sig.hot + " = " + fmtFreq(sig.freq) + "% ≥ " + fmtFreq(sig.threshold) + "%", "ready");
+    setSignalStatus("Signal: " + signalDetailTrade(sig), "ready");
   }
 
   function checkWaitSignal() {
@@ -2997,21 +3351,38 @@
     if (!waitEnabled()) return "off";
     if (!auth.wsOpen) { stopAuto("இணைப்பு துண்டானது"); return "disc"; }
     if (busy) { renderWaitStatus(); return "busy"; }
+    if (predAuto.pauseLeft > 0) { renderPauseStatus(); return "pause"; }
     predAuto.waiting = true;
     if (predAuto.cooldownLeft > 0) { renderWaitStatus(); return "cooldown"; }
     var sig = snapshotSignal();
     renderWaitStatus();
-    if (!sig || sig.hot == null || !sig.ok) return "wait";
-    // Condition met: lock the hot digit shown at this moment and buy Matches.
-    var methodEl = $("method");
-    if (methodEl && methodEl.value !== "hot") { methodEl.value = "hot"; methodEl.dispatchEvent(new Event("change")); }
-    t.follow.checked = true;
-    t.digit.value = String(sig.hot);
-    if (window.__predictor && window.__predictor.getState) {
-      // refreshViews already ran on the tick; digit on card is the hot digit when wait is on
+    if (!sig || !sig.ok) return "wait";
+    if (isRfTradeMode()) {
+      if (!sig.dir) return "wait";
+      setCtype(sig.dir === "fall" ? "PUT" : "CALL");
+      predAuto.waiting = false;
+      t.countdown.textContent = "Entry now · Rise/Fall " + sig.dir.toUpperCase();
+      tradeOnce("autopred");
+      return "buy";
     }
+    if (isEoTradeMode()) {
+      if (!sig.parity) return "wait";
+      setCtype(sig.parity === "odd" ? "DIGITODD" : "DIGITEVEN");
+      predAuto.waiting = false;
+      t.countdown.textContent = "Entry now · Even/Odd " + sig.parity.toUpperCase();
+      tradeOnce("autopred");
+      return "buy";
+    }
+    var dig = sig.hot != null ? sig.hot : sig.digit;
+    if (dig == null) return "wait";
+    if (isHotWaitTrade()) {
+      var methodEl = $("method");
+      if (methodEl && methodEl.value !== "hot") { methodEl.value = "hot"; methodEl.dispatchEvent(new Event("change")); }
+    }
+    t.follow.checked = true;
+    t.digit.value = String(dig);
     predAuto.waiting = false;
-    t.countdown.textContent = "Entry now · Matches " + sig.hot + " (" + fmtFreq(sig.freq) + "%)";
+    t.countdown.textContent = "Entry now · Matches " + dig + (sig.freq != null ? " (" + fmtFreq(sig.freq) + "%)" : "");
     tradeOnce("autopred");
     return "buy";
   }
@@ -3032,7 +3403,7 @@
     if (!rfMode && !eoMode) {
       if (ctype !== "DIGITMATCH") setCtype("DIGITMATCH");
       t.follow.checked = true;
-      if (waitEnabled()) {
+      if (isHotWaitTrade()) {
         var methodEl = $("method");
         if (methodEl && methodEl.value !== "hot") { methodEl.value = "hot"; methodEl.dispatchEvent(new Event("change")); }
       }
@@ -3070,9 +3441,9 @@
     predAuto.pauseLeft = 0;
     updatePredAutoButtons();
     renderNextStake();
-    if (!rfMode && !eoMode && waitEnabled()) {
+    if (waitEnabled()) {
       predAuto.waiting = true;
-      showMsg("ok", "Auto trade prediction தொடங்கியது. Hot digit % தேவை வரை காத்திருக்கும். நிறுத்து அழுத்தினால் காத்திருப்பும் நிற்கும்.");
+      showMsg("ok", "Auto trade prediction தொடங்கியது. Signal / movement வரும் வரை காத்திருக்கும். நிறுத்து அழுத்தினால் காத்திருப்பும் நிற்கும்.");
       renderWaitStatus();
       checkWaitSignal();
     } else {
