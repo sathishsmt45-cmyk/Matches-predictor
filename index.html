@@ -512,7 +512,7 @@
         <p class="small">Market: மேலே உள்ள Market dropdown (<b id="trade-market">1HZ100V</b>). Default 2 ticks, stake 0.35. எந்த contract type-க்கும் நிரூபிக்கப்பட்ட edge இல்லை.</p>
         <div class="row2">
           <label class="field">Take Profit ($)<input type="number" id="tp" value="5" min="0.01" step="0.01" inputmode="decimal"></label>
-          <label class="field">Stop Loss ($)<input type="number" id="sl" value="5" min="0.01" step="0.01" inputmode="decimal"></label>
+          <label class="field">Stop Loss ($)<input type="number" id="sl" value="2" min="0.01" step="0.01" inputmode="decimal"></label>
         </div>
         <div class="btn-row">
           <button type="button" class="btn go" id="btn-trade">Trade now</button>
@@ -535,6 +535,11 @@
             <label class="field">Pause ticks<input type="number" id="pause-y" value="20" min="1" max="200" step="1" inputmode="numeric"></label>
           </div>
           <p class="small" lang="ta">Default: 4 தோல்விக்குப் பிறகு 20 ticks இடைநிறுத்தம். நிறுத்து அழுத்தினால் இடைநிறுத்தமும் ரத்து.</p>
+          <div class="row3" id="session-limit-fields">
+            <label class="field">Max trades / session<input type="number" id="max-trades" value="20" min="0" max="1000" step="1" inputmode="numeric"></label>
+            <label class="field">Gap between trades (ticks)<input type="number" id="trade-gap" value="5" min="0" max="100" step="1" inputmode="numeric"></label>
+          </div>
+          <p class="small" lang="ta" id="session-limit-note">Max trades 0 = வரம்பு இல்லை. Gap 0 = quick entry (அடுத்த tick-ல் நுழையும்). Default: 20 trades, 5 ticks இடைவெளி. நிறுத்து உடனே நிற்கும்.</p>
           <div class="btn-row">
             <button type="button" class="btn go" id="btn-auto-pred">▶ தொடங்கு — Auto trade prediction</button>
             <button type="button" class="btn danger hidden" id="btn-auto-stop">■ நிறுத்து</button>
@@ -2093,6 +2098,7 @@
     btnAutoPred: $("btn-auto-pred"), btnAutoStop: $("btn-auto-stop"),
     waitSignal: $("wait-signal"), signalStatus: $("signal-status"),
     pauseStreak: $("pause-streak"), pauseX: $("pause-x"), pauseY: $("pause-y"),
+    maxTrades: $("max-trades"), tradeGap: $("trade-gap"),
     sessTrades: $("sess-trades"), sessWins: $("sess-wins"), sessWinpct: $("sess-winpct"),
     sessDd: $("sess-dd"), sessStreak: $("sess-streak"), sessLatency: $("sess-latency")
   };
@@ -2107,7 +2113,7 @@
   var busy = false;
   var openContracts = {};   // contract_id -> {entry, subId, timer, settled}
   var autoState = { timer: null, remaining: 0, realConfirmed: false };
-  var predAuto = { running: false, timer: null, realConfirmed: false, stopBuy: false, waiting: false, cooldownLeft: 0, signalTrades: 0, signalWins: 0, lossStreak: 0, pauseLeft: 0, armTick: false, settledAt: 0, lastLatencyMs: null, latSum: 0, latCount: 0, prefetch: null, prefetchGen: 0 };
+  var predAuto = { running: false, timer: null, realConfirmed: false, stopBuy: false, waiting: false, cooldownLeft: 0, signalTrades: 0, signalWins: 0, lossStreak: 0, pauseLeft: 0, gapLeft: 0, armTick: false, settledAt: 0, lastLatencyMs: null, latSum: 0, latCount: 0, prefetch: null, prefetchGen: 0 };
   var mgState = { next: null }; // null = use base stake from the form
   var lastBuy = { displayed: null, barrier: null, exit: null, profit: null, stake: null, contractId: null };
   var userEditedDigit = false;
@@ -2612,6 +2618,8 @@
   function pauseEnabled() { return !!(t.pauseStreak && t.pauseStreak.checked); }
   function pauseX() { return Math.round(clampTradeNum(t.pauseX && t.pauseX.value, 2, 20, 4)); }
   function pauseY() { return Math.round(clampTradeNum(t.pauseY && t.pauseY.value, 1, 200, 20)); }
+  function maxSessionTrades() { return Math.round(clampTradeNum(t.maxTrades && t.maxTrades.value, 0, 1000, 20)); }
+  function tradeGapTicks() { return Math.round(clampTradeNum(t.tradeGap && t.tradeGap.value, 0, 100, 5)); }
   function clampTradeNum(v, lo, hi, fallback) {
     var n = Number(v);
     if (!isFinite(n)) return fallback;
@@ -2630,7 +2638,7 @@
     if (!(predAuto.pauseLeft > 0)) return;
     predAuto.pauseLeft -= 1;
     renderPauseStatus();
-    if (predAuto.pauseLeft <= 0 && !busy) schedulePredNext(400);
+    if (predAuto.pauseLeft <= 0 && !busy) armAfterGap();
   }
 
   function updateTradeButton() {
@@ -2751,6 +2759,39 @@
     predAuto.settledAt = 0;
     renderLatency();
   }
+  function renderGapStatus() {
+    if (!predAuto.running) return;
+    if (predAuto.gapLeft > 0) {
+      t.countdown.textContent = "இடைவெளி: அடுத்த trade-க்கு " + predAuto.gapLeft + " ticks மீதம்";
+    }
+  }
+  function armAfterGap() {
+    if (!predAuto.running || predAuto.stopBuy) return;
+    if (predAuto.timer) { clearTimeout(predAuto.timer); predAuto.timer = null; }
+    if (!auth.wsOpen) { stopAuto("இணைப்பு துண்டானது"); return; }
+    if (predAuto.pauseLeft > 0) { renderPauseStatus(); return; }
+    var g = tradeGapTicks();
+    if (g <= 0) { armQuickEntry(); return; }
+    predAuto.gapLeft = g;
+    predAuto.armTick = false;
+    predAuto.waiting = false;
+    renderGapStatus();
+    prefetchNextProposal();
+  }
+  function onGapTick() {
+    if (!predAuto.running || predAuto.stopBuy) return;
+    if (!(predAuto.gapLeft > 0)) return;
+    if (predAuto.pauseLeft > 0) return;
+    if (busy) return;
+    predAuto.gapLeft -= 1;
+    if (predAuto.gapLeft > 0) {
+      renderGapStatus();
+      prefetchNextProposal();
+      return;
+    }
+    predAuto.gapLeft = 0;
+    armQuickEntry();
+  }
   function armQuickEntry() {
     if (!predAuto.running || predAuto.stopBuy) return;
     if (predAuto.timer) { clearTimeout(predAuto.timer); predAuto.timer = null; }
@@ -2764,7 +2805,7 @@
   }
   function onQuickTick() {
     if (!predAuto.running || predAuto.stopBuy || waitEnabled()) return;
-    if (predAuto.pauseLeft > 0) {
+    if (predAuto.pauseLeft > 0 || predAuto.gapLeft > 0) {
       prefetchNextProposal();
       return;
     }
@@ -2780,6 +2821,11 @@
     if (!auth.ws || !auth.wsOpen) { showMsg("err", TA_ERRORS.notConnected); return Promise.resolve("noconn"); }
     if (source === "autopred" && !predAuto.running) return Promise.resolve("stopped");
     if (source === "autopred" && predAuto.pauseLeft > 0) { renderPauseStatus(); return Promise.resolve("pause"); }
+    if (source === "autopred" && maxSessionTrades() > 0 && session.trades >= maxSessionTrades()) {
+      stopAuto("அமர்வு வரம்பு (" + maxSessionTrades() + " trades)");
+      showMsg("ok", "அமர்வு வரம்பு: " + maxSessionTrades() + " trades ஆகிவிட்டது. Auto நிறுத்தப்பட்டது.");
+      return Promise.resolve("max");
+    }
     var displayed = displayedPrediction();
     var rfDir = null;
     var eoPar = null;
@@ -3054,7 +3100,7 @@
         renderWaitStatus();
         if (predAuto.cooldownLeft === 0) checkWaitSignal();
       } else {
-        armQuickEntry();
+        armAfterGap();
       }
     }
   }
@@ -3063,6 +3109,12 @@
     var tp = num(t.tp), sl = num(t.sl);
     if (tp > 0 && session.pnl >= tp - 1e-9) { stopAuto("Take Profit"); showMsg("ok", "Take Profit அடைந்தது (" + session.pnl.toFixed(2) + "). Auto நிறுத்தப்பட்டது."); return true; }
     if (sl > 0 && session.pnl <= -sl + 1e-9) { stopAuto("Stop Loss"); showMsg("err", "Stop Loss அடைந்தது (" + session.pnl.toFixed(2) + "). Auto நிறுத்தப்பட்டது."); return true; }
+    var maxT = maxSessionTrades();
+    if (maxT > 0 && session.trades >= maxT) {
+      stopAuto("அமர்வு வரம்பு (" + maxT + " trades)");
+      showMsg("ok", "அமர்வு வரம்பு: " + maxT + " trades ஆகிவிட்டது. Auto நிறுத்தப்பட்டது.");
+      return true;
+    }
     return false;
   }
 
@@ -3078,6 +3130,7 @@
     predAuto.cooldownLeft = 0;
     predAuto.lossStreak = 0;
     predAuto.pauseLeft = 0;
+    predAuto.gapLeft = 0;
     predAuto.realConfirmed = false;
     forgetPrefetch();
     if (predAuto.timer) { clearTimeout(predAuto.timer); predAuto.timer = null; }
@@ -3195,22 +3248,22 @@
     predAuto.cooldownLeft = 0;
     predAuto.lossStreak = 0;
     predAuto.pauseLeft = 0;
+    predAuto.gapLeft = 0;
     updatePredAutoButtons();
     renderNextStake();
+    var gapN = tradeGapTicks();
+    var maxT = maxSessionTrades();
+    var limitsHint = (maxT > 0 ? "அமர்வு வரம்பு " + maxT + " trades. " : "") + (gapN > 0 ? "Trades-க்கு இடையே " + gapN + " ticks இடைவெளி. " : "Quick entry: அடுத்த tick-ல் நுழையும். ");
     if (!rfMode && !eoMode && waitEnabled()) {
       predAuto.waiting = true;
-      showMsg("ok", "Auto trade prediction தொடங்கியது. Hot digit % தேவை வரை காத்திருக்கும். நிறுத்து அழுத்தினால் காத்திருப்பும் நிற்கும்.");
+      showMsg("ok", "Auto trade prediction தொடங்கியது. Hot digit % தேவை வரை காத்திருக்கும். " + limitsHint + "நிறுத்து அழுத்தினால் காத்திருப்பும் நிற்கும்.");
       renderWaitStatus();
       checkWaitSignal();
     } else {
       predAuto.waiting = false;
-      var startMsg = rfMode
-        ? "Auto trade Rise/Fall தொடங்கியது. Quick entry: அடுத்த tick-ல் நுழையும்; முடிந்ததும் அடுத்த tick-ல் உடனே. நிறுத்து அழுத்தினால் உடனே நிற்கும்."
-        : eoMode
-        ? "Auto trade Even/Odd தொடங்கியது. Quick entry: அடுத்த tick-ல் நுழையும்; முடிந்ததும் அடுத்த tick-ல் உடனே. நிறுத்து அழுத்தினால் உடனே நிற்கும்."
-        : "Auto trade prediction தொடங்கியது. Quick entry: அடுத்த tick-ல் நுழையும்; முடிந்ததும் அடுத்த tick-ல் உடனே. நிறுத்து அழுத்தினால் உடனே நிற்கும்.";
-      showMsg("ok", startMsg);
-      armQuickEntry();
+      var kind = rfMode ? "Auto trade Rise/Fall தொடங்கியது. " : eoMode ? "Auto trade Even/Odd தொடங்கியது. " : "Auto trade prediction தொடங்கியது. ";
+      showMsg("ok", kind + limitsHint + "நிறுத்து அழுத்தினால் உடனே நிற்கும்.");
+      armAfterGap();
     }
   }
 
@@ -3303,6 +3356,7 @@
       maybeStartCountdown();
       onSignalTick();
       onPauseTick();
+      onGapTick();
       onQuickTick();
     }
     if (kind === "wait" && predAuto.running && waitEnabled() && !busy) {
@@ -3357,6 +3411,7 @@
         autoPred: !!predAuto.running, waiting: !!predAuto.waiting, cooldownLeft: predAuto.cooldownLeft,
         waitOn: waitEnabled(), signalTrades: predAuto.signalTrades, signalWins: predAuto.signalWins,
         pauseLeft: predAuto.pauseLeft || 0, lossStreak: predAuto.lossStreak || 0,
+        gapLeft: predAuto.gapLeft || 0, tradeGap: tradeGapTicks(), maxTrades: maxSessionTrades(),
         armTick: !!predAuto.armTick, lastLatencyMs: predAuto.lastLatencyMs, avgLatencyMs: predAuto.latCount ? predAuto.latSum / predAuto.latCount : null,
         maxDd: session.maxDd, streak: session.streak, winPct: session.trades ? session.wins / session.trades : null,
         mgNext: currentStake(), lastBuy: lastBuy,
